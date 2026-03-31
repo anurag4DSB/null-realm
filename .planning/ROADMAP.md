@@ -24,9 +24,9 @@ Build a multi-agent learning lab on GKE, starting with visual infrastructure (da
 ```
 LOCAL (Kind cluster)                    GKE (Autopilot)
 ┌──────────────────────┐               ┌──────────────────────┐
-│ make kind-up         │               │ pulumi up            │
-│ make deploy-local    │──push main──→ │ Cloud Build triggers │
-│ make test-local      │               │ → build images       │
+│ invoke kind-up       │               │ pulumi up            │
+│ invoke deploy-local  │──push main──→ │ Cloud Build triggers │
+│ invoke test-local    │               │ → build images       │
 │                      │               │ → push to AR         │
 │ localhost:8000 (API) │               │ → kubectl apply      │
 │ localhost:8501 (UI)  │               │                      │
