@@ -1,16 +1,4 @@
 # Auth check with redirect — if not logged in, redirects to Google login
-# instead of showing "Unauthorized" text.
-# Uses a tiny nginx wrapper that converts OAuth2 Proxy's 401 → 302 redirect.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-chat-prefix
-  namespace: null-realm
-spec:
-  stripPrefix:
-    prefixes:
-      - /chat
----
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

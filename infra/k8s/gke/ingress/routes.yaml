@@ -1,59 +1,20 @@
-# Langfuse — behind Google OAuth via OAuth2 Proxy (handles login flow)
+# Langfuse — root domain, behind Google OAuth via OAuth2 Proxy
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: null-realm
+  name: langfuse
   namespace: null-realm
 spec:
   entryPoints:
     - web
   routes:
-    - match: PathPrefix(`/oauth2`) || PathPrefix(`/`)
+    - match: Host(`34.53.165.155.nip.io`)
       kind: Rule
-      priority: 1
       services:
         - name: oauth2-proxy
           port: 4180
 ---
-# Grafana — protected by OAuth2 cookie check
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: grafana
-  namespace: null-realm
-spec:
-  entryPoints:
-    - web
-  routes:
-    - match: PathPrefix(`/grafana`)
-      kind: Rule
-      priority: 10
-      middlewares:
-        - name: oauth2-auth
-      services:
-        - name: prometheus-grafana
-          port: 80
----
-# Jaeger — protected by OAuth2 cookie check
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: jaeger
-  namespace: null-realm
-spec:
-  entryPoints:
-    - web
-  routes:
-    - match: PathPrefix(`/jaeger`)
-      kind: Rule
-      priority: 10
-      middlewares:
-        - name: oauth2-auth
-      services:
-        - name: jaeger
-          port: 16686
----
-# Chat UI (Chainlit) — protected by OAuth2, strip /chat prefix
+# Chat UI (Chainlit) — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -63,17 +24,51 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: PathPrefix(`/chat`)
+    - match: Host(`chat.34.53.165.155.nip.io`)
       kind: Rule
-      priority: 10
       middlewares:
         - name: oauth2-auth
-        - name: strip-chat-prefix
       services:
         - name: chainlit
           port: 8501
 ---
-# API server — protected by OAuth2
+# Grafana — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`grafana.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: prometheus-grafana
+          port: 80
+---
+# Jaeger — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jaeger
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`jaeger.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: jaeger
+          port: 16686
+---
+# API server — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -83,9 +78,8 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: PathPrefix(`/api`) || PathPrefix(`/ws`) || PathPrefix(`/health`)
+    - match: Host(`api.34.53.165.155.nip.io`)
       kind: Rule
-      priority: 10
       middlewares:
         - name: oauth2-auth
       services:

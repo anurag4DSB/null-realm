@@ -27,6 +27,8 @@ data:
 
       location @login_redirect {
         # Redirect to OAuth2 sign-in, preserving the original URL
-        return 302 http://34.53.165.155.nip.io/oauth2/start?rd=$http_x_forwarded_uri;
+        # Redirect to main domain for login, then back to the subdomain
+        set $rd_url http://$http_x_forwarded_host$http_x_forwarded_uri;
+        return 302 http://34.53.165.155.nip.io/oauth2/start?rd=$rd_url;
       }
     }
