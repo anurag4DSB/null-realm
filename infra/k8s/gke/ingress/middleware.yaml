@@ -1,5 +1,6 @@
-# Check OAuth2 cookie — returns 202 if logged in, 401 if not.
-# Users who haven't logged in yet should visit / first (Langfuse handles the Google redirect).
+# Auth check with redirect — if not logged in, redirects to Google login
+# instead of showing "Unauthorized" text.
+# Uses a tiny nginx wrapper that converts OAuth2 Proxy's 401 → 302 redirect.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -7,7 +8,7 @@ metadata:
   namespace: null-realm
 spec:
   forwardAuth:
-    address: http://oauth2-proxy.null-realm.svc.cluster.local:4180/oauth2/auth
+    address: http://auth-redirect.null-realm.svc.cluster.local:8080/check
     trustForwardHeader: true
     authResponseHeaders:
       - X-Auth-Request-User

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-redirect-nginx
+  namespace: null-realm
+data:
+  default.conf: |
+    server {
+      listen 8080;
+
+      location /check {
+        # Forward auth check to OAuth2 Proxy
+        proxy_pass http://oauth2-proxy.null-realm.svc.cluster.local:4180/oauth2/auth;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $http_x_forwarded_host;
+        proxy_set_header X-Forwarded-Uri $http_x_forwarded_uri;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+
+        # If OAuth2 Proxy returns 401, redirect to Google login
+        error_page 401 = @login_redirect;
+      }
+
+      location @login_redirect {
+        # Redirect to OAuth2 sign-in, preserving the original URL
+        return 302 http://34.53.165.155.nip.io/oauth2/start?rd=$http_x_forwarded_uri;
+      }
+    }
