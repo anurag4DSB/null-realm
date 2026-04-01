@@ -38,7 +38,11 @@ async def on_message(message: cl.Message):
     ws = cl.user_session.get("ws")
 
     # Reconnect if WebSocket was closed
-    if ws is None or ws.closed:
+    try:
+        ws_is_closed = ws is None or not ws.protocol
+    except Exception:
+        ws_is_closed = True
+    if ws_is_closed:
         ws = await websockets.connect(f"{API_URL}/{session_id}")
         cl.user_session.set("ws", ws)
 
