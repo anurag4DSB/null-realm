@@ -83,7 +83,15 @@ All resources are tagged `project: null-realm`, `user: anurag` and live in `euro
 | Secret Manager | `ANTHROPIC_API_KEY`, `DATABASE_URL`, `OAUTH2_*` | Secrets |
 | VPC + Subnet | `null-realm-vpc` | Private networking |
 
-### Populate secrets (one-time, after `pulumi-up`)
+### Set Pulumi secrets (one-time, before first `pulumi-up`)
+
+```bash
+cd infra/pulumi
+# Database password (stored encrypted in Pulumi.dev.yaml, never in plaintext)
+PULUMI_CONFIG_PASSPHRASE="" pulumi config set --secret db_password <your-password>
+```
+
+### Populate GCP Secret Manager (one-time, after `pulumi-up`)
 
 ```bash
 # Anthropic API key

@@ -2,3 +2,5 @@ encryptionsalt: v1:9cafcv3mgck=:v1:uHzgf+jzeECbAh5+:Zv886unIsmJE8QNw/44dxPA2q7lu
 config:
   gcp:project: helpful-rope-230010
   gcp:region: europe-west1
+  null-realm:db_password:
+    secure: v1:PAT7ixNCu1NokVCt:jJdkGY5kl1IJBOGeY7guKJYGx3ArdiTSPt66keLpbw7+
