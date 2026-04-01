@@ -37,16 +37,19 @@ spec:
               memory: 2Gi
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/readiness
               port: 4000
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/readiness
               port: 4000
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
       volumes:
         - name: litellm-config
           configMap:
