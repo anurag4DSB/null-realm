@@ -19,6 +19,8 @@ data:
         proxy_set_header X-Forwarded-Uri $http_x_forwarded_uri;
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
 
+        # Intercept upstream errors so error_page directive works
+        proxy_intercept_errors on;
         # If OAuth2 Proxy returns 401, redirect to Google login
         error_page 401 = @login_redirect;
       }
