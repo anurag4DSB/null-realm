@@ -21,8 +21,6 @@ spec:
           args:
             - --provider=google
             - --email-domain=*
-            - --upstream=http://prometheus-grafana.null-realm.svc.cluster.local:80/grafana/
-            - --upstream=http://jaeger.null-realm.svc.cluster.local:16686/jaeger/
             - --upstream=http://langfuse.null-realm.svc.cluster.local:3000/
             - --http-address=0.0.0.0:4180
             - --redirect-url=http://34.53.165.155.nip.io/oauth2/callback
