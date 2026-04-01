@@ -15,3 +15,15 @@ data:
         url: http://jaeger.null-realm.svc.cluster.local:16686
         isDefault: false
         editable: true
+      - name: Langfuse
+        type: grafana-postgresql-datasource
+        access: proxy
+        url: 10.5.0.3:5432
+        user: nullrealm
+        editable: true
+        secureJsonData:
+          password: nullrealm_gke_dev
+        jsonData:
+          database: nullrealm
+          sslmode: disable
+          postgresVersion: 1600

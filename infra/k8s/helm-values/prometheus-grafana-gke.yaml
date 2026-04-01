@@ -24,23 +24,6 @@ grafana:
     requests:
       memory: 128Mi
       cpu: 50m
-  additionalDataSources:
-    - name: Jaeger
-      type: jaeger
-      access: proxy
-      url: http://jaeger.null-realm.svc.cluster.local:16686
-      isDefault: false
-    - name: Langfuse
-      type: postgres
-      access: proxy
-      url: 10.5.0.3:5432
-      database: nullrealm
-      user: nullrealm
-      secureJsonData:
-        password: nullrealm_gke_dev
-      jsonData:
-        sslmode: disable
-        postgresVersion: 1600
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
