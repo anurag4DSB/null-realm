@@ -164,6 +164,112 @@ cd infra/pulumi && PULUMI_CONFIG_PASSPHRASE="" pulumi stack output
 
 ---
 
+## Recreating Ephemeral Resources
+
+These resources are NOT in the repo (they contain secrets or are created in UIs).
+If the GKE cluster is destroyed and recreated, follow these steps.
+
+### 1. K8s Secret: `llm-api-keys` (null-realm namespace)
+
+**What**: API keys for LLM calls and observability tracing.
+**Used by**: LiteLLM (Anthropic key), API server (Langfuse keys).
+
+```bash
+CTX=gke_helpful-rope-230010_europe-west1_null-realm
+
+kubectl create secret generic llm-api-keys \
+  --from-literal=ANTHROPIC_API_KEY="sk-ant-..." \
+  --from-literal=LANGFUSE_SECRET_KEY="sk-lf-..." \
+  --from-literal=LANGFUSE_PUBLIC_KEY="pk-lf-..." \
+  --from-literal=LANGFUSE_HOST="http://langfuse.null-realm.svc.cluster.local:3000" \
+  -n null-realm --context $CTX
+```
+
+**Where to get the values**: `.secrets.local.md` in repo root (gitignored).
+
+### 2. K8s Secret: `oauth2-proxy-secrets` (null-realm namespace)
+
+**What**: Google OAuth credentials for protecting GKE services.
+**Used by**: OAuth2 Proxy (Google login for all subdomains).
+
+```bash
+kubectl create secret generic oauth2-proxy-secrets \
+  --from-literal=client-id="<Google OAuth Client ID>" \
+  --from-literal=client-secret="<Google OAuth Client Secret>" \
+  --from-literal=cookie-secret="$(python3 -c 'import secrets; print(secrets.token_hex(16))')" \
+  -n null-realm --context $CTX
+```
+
+**Where to get the values**:
+- Client ID/Secret: GCP Console → APIs & Services → Credentials → `null-realm` OAuth client
+- Cookie secret: auto-generated (any 32-char hex string)
+
+### 3. Langfuse account + project
+
+**What**: Langfuse needs a user account and project to generate API keys.
+**Affects**: LLM trace visibility in Langfuse UI.
+
+1. Open Langfuse UI (GKE: `34.53.165.155.nip.io`, local: `localhost:3001`)
+2. Sign up (email/password, anything works for self-hosted)
+3. Create org + project named `null-realm`
+4. Go to API Keys → Create new key
+5. Copy Public Key + Secret Key → update `llm-api-keys` K8s secret (step 1)
+
+### 4. Google OAuth redirect URI
+
+**What**: Google requires a redirect URI for OAuth login flow.
+**Affects**: Login won't work without this.
+
+1. GCP Console → APIs & Services → Credentials → `null-realm` OAuth client
+2. Add redirect URI: `http://34.53.165.155.nip.io/oauth2/callback`
+   (replace IP if Traefik's LoadBalancer IP changed)
+
+### 5. Seed registry data
+
+**What**: Tools, prompts, assistants, workflows in PostgreSQL.
+**How**: Run from inside the api-server pod:
+
+```bash
+kubectl exec -n null-realm deploy/api-server --context $CTX -- \
+  uv run python -m nullrealm.registry.seed
+```
+
+### 6. Apply non-Helm K8s resources
+
+Some resources are in the repo but not auto-applied by Helm:
+
+```bash
+# Argo RBAC for agent pods
+kubectl apply -f infra/k8s/argo-templates/rbac.yaml --context $CTX
+
+# Argo WorkflowTemplate (GKE version)
+kubectl apply -f infra/k8s/gke/argo-templates/agent-worker.yaml --context $CTX
+
+# Argo metrics service + ServiceMonitor
+kubectl apply -f infra/k8s/gke/argo-metrics.yaml --context $CTX
+
+# Extra Grafana datasources (Jaeger + Langfuse)
+kubectl apply -f infra/k8s/gke/grafana-datasources.yaml --context $CTX
+
+# Auth redirect nginx
+kubectl apply -f infra/k8s/gke/auth-redirect/ --context $CTX
+
+# OAuth2 Proxy
+kubectl apply -f infra/k8s/gke/oauth2-proxy/deployment.yaml --context $CTX
+
+# Traefik IngressRoutes
+kubectl apply -f infra/k8s/gke/ingress/ --context $CTX
+
+# All GKE app deployments
+kubectl apply -f infra/k8s/gke/api-server/deployment.yaml --context $CTX
+kubectl apply -f infra/k8s/gke/chainlit/deployment.yaml --context $CTX
+kubectl apply -f infra/k8s/gke/litellm/deployment.yaml --context $CTX
+kubectl apply -f infra/k8s/gke/jaeger/ --context $CTX
+kubectl apply -f infra/k8s/gke/langfuse/ --context $CTX
+```
+
+---
+
 ## Typical Session Flow
 
 ```bash
