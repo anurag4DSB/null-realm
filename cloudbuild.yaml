@@ -1,0 +1,83 @@
+steps:
+  # Build API image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/api:$COMMIT_SHA
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/api:latest
+      - -f
+      - Dockerfile.api
+      - .
+    id: build-api
+
+  # Build worker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/worker:$COMMIT_SHA
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/worker:latest
+      - -f
+      - Dockerfile.worker
+      - .
+    id: build-worker
+
+  # Build UI image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/ui:$COMMIT_SHA
+      - -t
+      - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/ui:latest
+      - -f
+      - Dockerfile.ui
+      - .
+    id: build-ui
+
+  # Push all images
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/api']
+    waitFor: [build-api]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/worker']
+    waitFor: [build-worker]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/ui']
+    waitFor: [build-ui]
+
+  # Get GKE credentials
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - container
+      - clusters
+      - get-credentials
+      - null-realm
+      - --region
+      - europe-west1
+      - --project
+      - helpful-rope-230010
+    id: get-credentials
+    waitFor: ['-']  # run in parallel with builds
+
+  # Apply K8s manifests (namespace + base)
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args: [apply, -f, infra/k8s/base/namespace.yaml]
+    env: ['CLOUDSDK_COMPUTE_REGION=europe-west1', 'CLOUDSDK_CONTAINER_CLUSTER=null-realm']
+    waitFor: [get-credentials]
+
+images:
+  - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/api:$COMMIT_SHA
+  - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/worker:$COMMIT_SHA
+  - europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/ui:$COMMIT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1200s

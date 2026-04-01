@@ -10,7 +10,7 @@ Build a multi-agent learning lab on GKE, starting with visual infrastructure (da
 - **Local K8s**: Kind cluster, always available alongside GKE
 - **LLM Access**: API keys via `.env` locally, Secret Manager on GKE. Start with Gemini (Google AI Studio key), add Claude later
 - **Visual First**: Observability deployed before application code. UI before backend when possible
-- **GCP Project**: `helpful-rope-230010` (us-central1 region)
+- **GCP Project**: `helpful-rope-230010` (europe-west1 region)
 - **Task Runner**: Invoke (tasks.py) — Python-native, not Makefile
 - **Auth**: OAuth2 Proxy + Traefik on GKE (Phase 01-03). Google OAuth login. No auth on local Kind. Upgrade path: Pomerium.
 

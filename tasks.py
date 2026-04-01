@@ -1,13 +1,21 @@
 """Invoke tasks for Null Realm local development.
 
 Usage:
-    invoke kind-up       # Create Kind cluster + namespaces
-    invoke kind-down     # Delete Kind cluster
-    invoke build         # Build all Docker images
-    invoke load-images   # Load images into Kind
-    invoke deploy-local          # Apply K8s manifests
-    invoke deploy-observability  # Deploy Prometheus + Grafana via Helm
-    invoke dev                   # Full local dev cycle
+    invoke kind-up              # Create Kind cluster + namespaces
+    invoke kind-down            # Delete Kind cluster
+    invoke build                # Build all Docker images
+    invoke load-images          # Load images into Kind
+    invoke deploy-local         # Apply K8s manifests
+    invoke deploy-observability # Deploy Prometheus + Grafana via Helm
+    invoke dev                  # Full local dev cycle
+
+    invoke pulumi-up            # Provision/update GCP infrastructure
+    invoke pulumi-destroy       # Tear down all GCP infra (stops billing)
+    invoke get-gke-credentials  # Get kubeconfig for GKE cluster
+
+    invoke sql-stop             # Stop Cloud SQL to save costs (~$1.78/day)
+    invoke sql-start            # Start Cloud SQL before a session
+    invoke gcp-status           # Show all deployed GCP resources
 """
 
 from invoke import task
@@ -115,6 +123,71 @@ def deploy_observability(c):
     print("  Grafana:  http://localhost:3000  (admin / admin)")
     print("  Jaeger:   http://localhost:16686")
     print("  Langfuse: http://localhost:3001")
+
+
+@task
+def get_gke_credentials(c):
+    """Get kubeconfig credentials for GKE cluster."""
+    c.run(
+        "gcloud container clusters get-credentials null-realm "
+        "--region europe-west1 --project helpful-rope-230010"
+    )
+
+
+@task
+def pulumi_up(c):
+    """Provision/update GCP infrastructure via Pulumi."""
+    with c.cd("infra/pulumi"):
+        c.run("PULUMI_CONFIG_PASSPHRASE='' pulumi up --yes --stack dev")
+
+
+@task
+def pulumi_destroy(c):
+    """Tear down all GCP infrastructure (stops billing)."""
+    with c.cd("infra/pulumi"):
+        c.run("PULUMI_CONFIG_PASSPHRASE='' pulumi destroy --yes --stack dev")
+
+
+@task
+def sql_stop(c):
+    """Stop Cloud SQL instance to save ~$1.78/day. Storage still billed (~$0.58/day)."""
+    c.run(
+        "gcloud sql instances patch null-realm-db "
+        "--activation-policy NEVER "
+        "--project helpful-rope-230010"
+    )
+    print("Cloud SQL stopped. Run 'invoke sql-start' before your next session.")
+
+
+@task
+def sql_start(c):
+    """Start Cloud SQL instance before a dev session."""
+    c.run(
+        "gcloud sql instances patch null-realm-db "
+        "--activation-policy ALWAYS "
+        "--project helpful-rope-230010"
+    )
+    print("Cloud SQL starting... (takes ~30 seconds to be ready)")
+
+
+@task
+def gcp_status(c):
+    """Show all deployed null-realm GCP resources (labeled project:null-realm)."""
+    project = "helpful-rope-230010"
+    print("\n=== GKE Clusters ===")
+    c.run(f"gcloud container clusters list --project={project} --format='table(name,location,status,currentMasterVersion)'", warn=True)
+
+    print("\n=== Cloud SQL Instances ===")
+    c.run(f"gcloud sql instances list --project={project} --format='table(name,region,databaseVersion,state)'", warn=True)
+
+    print("\n=== Artifact Registry ===")
+    c.run(f"gcloud artifacts repositories list --project={project} --format='table(name,format,location)'", warn=True)
+
+    print("\n=== Secret Manager (null-realm) ===")
+    c.run(f"gcloud secrets list --project={project} --filter='labels.project=null-realm' --format='table(name,createTime)'", warn=True)
+
+    print("\n=== Pulumi Stack Outputs ===")
+    c.run("bash -c 'cd infra/pulumi && PULUMI_CONFIG_PASSPHRASE=\"\" pulumi stack output 2>/dev/null'", warn=True)
 
 
 @task(pre=[kind_up])

@@ -1,0 +1,4 @@
+encryptionsalt: v1:9cafcv3mgck=:v1:uHzgf+jzeECbAh5+:Zv886unIsmJE8QNw/44dxPA2q7lurg==
+config:
+  gcp:project: helpful-rope-230010
+  gcp:region: europe-west1

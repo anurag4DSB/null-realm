@@ -3,7 +3,7 @@
 > **Purpose**: Track expected GCP costs per phase. Intended to eventually become a cost-monitoring tool
 > in Grafana (Phase 06 includes a cost dashboard).
 >
-> All prices are us-central1, as of April 2026. Actual costs visible in:
+> All prices are europe-west1, as of April 2026. Actual costs visible in:
 > GCP Console → Billing → Reports, or `gcloud billing accounts list`.
 
 ---
