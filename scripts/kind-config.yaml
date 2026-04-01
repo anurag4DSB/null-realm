@@ -1,0 +1,28 @@
+# Kind cluster configuration for Null Realm local development
+# Port mappings expose services on localhost
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: null-realm
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 8000
+        protocol: TCP
+        # API server (FastAPI)
+      - containerPort: 30001
+        hostPort: 8501
+        protocol: TCP
+        # Chainlit UI
+      - containerPort: 30002
+        hostPort: 3000
+        protocol: TCP
+        # Grafana
+      - containerPort: 30003
+        hostPort: 16686
+        protocol: TCP
+        # Jaeger UI
+      - containerPort: 30004
+        hostPort: 3001
+        protocol: TCP
+        # Langfuse
