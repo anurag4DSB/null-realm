@@ -23,6 +23,8 @@ spec:
             - containerPort: 8000
           command: ["uv", "run", "uvicorn", "nullrealm.main:app", "--host", "0.0.0.0", "--port", "8000"]
           env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm"
             - name: LITELLM_URL
               value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
             - name: NATS_URL

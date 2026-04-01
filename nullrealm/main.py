@@ -7,9 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nullrealm.api.routes.health import router as health_router
+from nullrealm.api.routes.registry import router as registry_router
 from nullrealm.api.websocket import websocket_endpoint
 from nullrealm.communication.nats_bus import NATSBus
 from nullrealm.observability.tracing import init_tracing
+from nullrealm.registry.database import init_db
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
     init_tracing()
+
+    # Initialize database tables
+    try:
+        await init_db()
+        logger.info("Database tables initialised")
+    except Exception:
+        logger.warning("Could not initialise database — registry disabled")
 
     # Connect to NATS JetStream
     nats_bus = NATSBus()
@@ -54,6 +63,9 @@ app.add_middleware(
 
 # Health and status routes
 app.include_router(health_router)
+
+# Registry CRUD routes
+app.include_router(registry_router)
 
 # WebSocket route
 app.add_api_websocket_route("/ws/{session_id}", websocket_endpoint)

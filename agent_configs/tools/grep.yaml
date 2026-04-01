@@ -1,0 +1,20 @@
+name: grep
+version: "1.0"
+description: Search for a pattern in files using grep-like functionality
+input_schema:
+  type: object
+  properties:
+    pattern:
+      type: string
+      description: The regex pattern to search for
+    path:
+      type: string
+      description: Directory or file path to search in
+    include:
+      type: string
+      description: "Glob pattern to filter files (e.g. *.py)"
+  required: [pattern]
+execution_type: python
+execution_config:
+  module: nullrealm.tools.builtins.grep
+  class: GrepTool
