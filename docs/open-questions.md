@@ -88,6 +88,18 @@ Currently all services report as `null-realm` in Jaeger. Should differentiate:
 
 ---
 
+## Argo Grafana dashboard uses v3 metric names
+
+The pre-built dashboard (`grafana-dashboards-argo.json`) was written for Argo v3 metrics. Argo v4 renamed metrics:
+- v3: `argo_workflows_count` → v4: `argo_workflows_gauge`
+- v3: `argo_workflows_pods_count` → v4: different structure
+
+Data IS in Prometheus (verified via Explore). Dashboard panels just need query updates.
+
+**When**: Phase 06 — build all custom dashboards together (Argo, LLM costs, model comparison).
+
+---
+
 ## invoke binary missing
 
 `uv run invoke build` stopped working — the `invoke` binary isn't found in the venv. Direct `docker build` works. Need to debug why `invoke` disappeared from the path.
