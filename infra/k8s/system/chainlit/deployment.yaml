@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainlit
+  namespace: null-realm
+  labels:
+    app: chainlit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chainlit
+  template:
+    metadata:
+      labels:
+        app: chainlit
+    spec:
+      containers:
+        - name: chainlit
+          image: null-realm-ui:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8501
+          command: ["uv", "run", "chainlit", "run", "ui/app.py", "--host", "0.0.0.0", "--port", "8501"]
+          env:
+            - name: API_WS_URL
+              value: "ws://api-server.null-realm.svc.cluster.local:8000/ws"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

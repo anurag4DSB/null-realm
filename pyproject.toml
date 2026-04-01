@@ -21,6 +21,7 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.29.0",
     "opentelemetry-instrumentation-fastapi>=0.50b0",
     "httpx>=0.28.0",
+    "websockets>=16.0",
 ]
 
 [project.optional-dependencies]

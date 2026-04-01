@@ -85,8 +85,9 @@ def load_images(c):
 def deploy_local(c):
     """Apply all K8s manifests to local Kind cluster."""
     c.run(f"kubectl apply -f {NAMESPACE_YAML}")
-    # Future: apply deployment manifests here
-    print("Local deploy complete. (Namespace manifests only for now)")
+    c.run("kubectl apply -f infra/k8s/system/api-server/")
+    c.run("kubectl apply -f infra/k8s/system/chainlit/")
+    print("Local deploy complete.")
 
 
 @task
