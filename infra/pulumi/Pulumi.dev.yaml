@@ -1,0 +1,4 @@
+encryptionsalt: v1:9cafcv3mgck=:v1:uHzgf+jzeECbAh5+:Zv886unIsmJE8QNw/44dxPA2q7lurg==
+config:
+  gcp:project: YOUR_GCP_PROJECT
+  gcp:region: europe-west1
