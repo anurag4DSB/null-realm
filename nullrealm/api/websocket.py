@@ -1,5 +1,6 @@
 """WebSocket endpoint for chat with direct LangGraph streaming."""
 
+import asyncio
 import json
 import logging
 
@@ -71,12 +72,15 @@ async def _stream_agent_response(
             if chunk and hasattr(chunk, "content") and chunk.content:
                 content = chunk.content
                 if isinstance(content, str) and content:
-                    chunk_count += 1
-                    await websocket.send_text(json.dumps({
-                        "type": "text_delta",
-                        "content": content,
-                        "session_id": session_id,
-                    }))
+                    # Split into characters for smooth streaming
+                    for char in content:
+                        chunk_count += 1
+                        await websocket.send_text(json.dumps({
+                            "type": "text_delta",
+                            "content": char,
+                            "session_id": session_id,
+                        }))
+                        await asyncio.sleep(0.008)
                 elif isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "text":
