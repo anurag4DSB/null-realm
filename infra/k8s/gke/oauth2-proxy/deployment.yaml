@@ -21,12 +21,15 @@ spec:
           args:
             - --provider=google
             - --email-domain=*
-            - --upstream=static://200
+            - --upstream=http://langfuse.null-realm.svc.cluster.local:3000/
             - --http-address=0.0.0.0:4180
+            - --redirect-url=http://INGRESS_IP.nip.io/oauth2/callback
             - --cookie-secure=false
+            - --cookie-domain=.INGRESS_IP.nip.io
             - --cookie-name=_null_realm_oauth2
-            - --set-xauthrequest=true
+            - --reverse-proxy=true
             - --pass-access-token=true
+            - --whitelist-domain=.INGRESS_IP.nip.io
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               valueFrom:
