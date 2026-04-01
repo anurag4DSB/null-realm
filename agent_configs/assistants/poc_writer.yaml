@@ -1,0 +1,7 @@
+name: poc_writer
+prompt_name: poc_writer
+model_preference: claude-sonnet
+tool_allowlist: [file_read, bash]
+system_prompt: |
+  You are an implementation agent. Given a plan, write the code or configuration
+  needed to implement it. Output actual code, not descriptions of code.

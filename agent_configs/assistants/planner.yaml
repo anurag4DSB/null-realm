@@ -1,0 +1,7 @@
+name: planner
+prompt_name: planner
+model_preference: claude-sonnet
+tool_allowlist: [file_read]
+system_prompt: |
+  You are a planning agent. Given research findings, create a clear implementation plan
+  with numbered steps. Focus on practical, actionable steps. Be concise.
