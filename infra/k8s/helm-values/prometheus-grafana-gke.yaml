@@ -2,6 +2,8 @@ grafana:
   adminPassword: "admin"
   service:
     type: ClusterIP   # Traefik handles ingress
+  deploymentStrategy:
+    type: Recreate
   grafana.ini:
     server:
       root_url: "http://grafana.INGRESS_IP.nip.io/"
