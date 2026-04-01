@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: null-realm
+  labels:
+    app.kubernetes.io/part-of: null-realm
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: null-realm-agents
+  labels:
+    app.kubernetes.io/part-of: null-realm
