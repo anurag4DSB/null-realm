@@ -1,0 +1,31 @@
+# Traefik Ingress Controller for GKE
+# Provisions a GCP Network Load Balancer via LoadBalancer service
+
+service:
+  type: LoadBalancer
+
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 200m
+  requests:
+    memory: 128Mi
+    cpu: 100m
+
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+    protocol: TCP
+  websecure:
+    port: 8443
+    exposedPort: 443
+    protocol: TCP
+
+ingressRoute:
+  dashboard:
+    enabled: false
+
+logs:
+  general:
+    level: INFO

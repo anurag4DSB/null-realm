@@ -1,0 +1,69 @@
+# OAuth2 Proxy callback route (no auth middleware — this IS the auth endpoint)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: oauth2-proxy
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/oauth2`)
+      kind: Rule
+      services:
+        - name: oauth2-proxy
+          port: 4180
+---
+# Grafana — protected by OAuth2
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/grafana`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: prometheus-grafana
+          port: 80
+---
+# Jaeger — protected by OAuth2
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jaeger
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/jaeger`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: jaeger
+          port: 16686
+---
+# Langfuse — protected by OAuth2
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: langfuse
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/langfuse`) || PathPrefix(`/`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: langfuse
+          port: 3000
