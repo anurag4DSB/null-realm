@@ -19,7 +19,7 @@ Build a multi-agent learning lab on GKE, starting with visual infrastructure (da
 1. **Web search tool** (Phase 02): Tavily API vs SerpAPI vs stub — decide in 02-02
 2. ~~**Traefik timing**~~ → DECIDED: Phase 01-03 with OAuth2 Proxy
 3. **KEDA timing** (Phase 04 or later): Deploy autoscaler with Argo or defer until post-v1.0
-4. **Anthropic API key** (Phase 02 or 06): Get Claude key early for agent testing or defer until comparison phase
+4. ~~**Anthropic API key**~~ → DECIDED: Claude as primary LLM from Phase 02. Add Gemini in Phase 06 for comparison.
 
 ## Deployment Architecture
 
