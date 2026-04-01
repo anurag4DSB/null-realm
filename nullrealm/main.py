@@ -28,14 +28,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("Could not initialise database — registry disabled")
 
-    # Connect to NATS JetStream
-    nats_bus = NATSBus()
-    try:
-        await nats_bus.connect()
-        app.state.nats_bus = nats_bus
-        logger.info("NATS bus connected and stored in app state")
-    except Exception:
-        logger.warning("Could not connect to NATS — streaming disabled, using fallback mode")
+    # Connect to NATS JetStream (only if NATS_URL is explicitly set)
+    import os
+    if os.getenv("NATS_URL"):
+        nats_bus = NATSBus()
+        try:
+            await nats_bus.connect()
+            app.state.nats_bus = nats_bus
+            logger.info("NATS bus connected")
+        except Exception:
+            logger.warning("Could not connect to NATS — streaming disabled")
+            app.state.nats_bus = None
+    else:
         app.state.nats_bus = None
 
     yield
