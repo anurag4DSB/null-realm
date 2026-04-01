@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-extra-datasources
+  namespace: null-realm
+  labels:
+    grafana_datasource: "1"
+data:
+  extra-datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Jaeger
+        type: jaeger
+        access: proxy
+        url: http://jaeger.null-realm.svc.cluster.local:16686
+        isDefault: false
+        editable: true
