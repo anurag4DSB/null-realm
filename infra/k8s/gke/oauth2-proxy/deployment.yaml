@@ -20,6 +20,7 @@ spec:
           image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
           args:
             - --provider=google
+            - --prompt=select_account
             - --email-domain=*
             - --upstream=http://langfuse.null-realm.svc.cluster.local:3000/
             - --http-address=0.0.0.0:4180
