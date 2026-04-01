@@ -22,6 +22,17 @@ spec:
           ports:
             - containerPort: 8000
           command: ["uv", "run", "uvicorn", "nullrealm.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          env:
+            - name: LITELLM_URL
+              value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://jaeger.null-realm.svc.cluster.local:4317"
+            - name: LANGFUSE_HOST
+              value: "http://langfuse.null-realm.svc.cluster.local:3000"
+          envFrom:
+            - secretRef:
+                name: llm-api-keys
+                optional: true
           resources:
             requests:
               cpu: 100m
