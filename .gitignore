@@ -208,3 +208,5 @@ __marimo__/
 
 # Local secrets reference (never commit)
 .secrets.local.md
+.chainlit/
+chainlit.md

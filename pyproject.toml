@@ -22,6 +22,10 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.50b0",
     "httpx>=0.28.0",
     "websockets>=16.0",
+    "langchain-core>=1.2.23",
+    "langchain-openai>=1.1.12",
+    "traceloop-sdk>=0.57.0",
+    "langfuse>=4.0.5",
 ]
 
 [project.optional-dependencies]
