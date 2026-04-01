@@ -4,6 +4,7 @@ import os
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -12,7 +13,8 @@ def init_tracing():
     """Initialize OpenTelemetry tracing to Jaeger + Langfuse."""
     # OTLP to Jaeger
     jaeger_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-    provider = TracerProvider()
+    resource = Resource.create({"service.name": "null-realm"})
+    provider = TracerProvider(resource=resource)
     provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=jaeger_endpoint, insecure=True))
     )
