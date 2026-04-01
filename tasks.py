@@ -5,8 +5,9 @@ Usage:
     invoke kind-down     # Delete Kind cluster
     invoke build         # Build all Docker images
     invoke load-images   # Load images into Kind
-    invoke deploy-local  # Apply K8s manifests
-    invoke dev           # Full local dev cycle
+    invoke deploy-local          # Apply K8s manifests
+    invoke deploy-observability  # Deploy Prometheus + Grafana via Helm
+    invoke dev                   # Full local dev cycle
 """
 
 from invoke import task
@@ -78,6 +79,42 @@ def deploy_local(c):
     c.run(f"kubectl apply -f {NAMESPACE_YAML}")
     # Future: apply deployment manifests here
     print("Local deploy complete. (Namespace manifests only for now)")
+
+
+@task
+def deploy_observability(c):
+    """Deploy Prometheus + Grafana via Helm, Jaeger, Postgres, and Langfuse on the local Kind cluster."""
+    c.run(
+        "helm upgrade --install prometheus prometheus-community/kube-prometheus-stack"
+        " -n null-realm"
+        " -f infra/k8s/helm-values/prometheus-grafana.yaml"
+        " --timeout 5m"
+        " --wait"
+    )
+    print("Prometheus + Grafana deployed.")
+
+    # Deploy Jaeger all-in-one (in-memory, dev-only)
+    c.run("kubectl apply -f infra/k8s/system/jaeger/deployment.yaml")
+    c.run("kubectl apply -f infra/k8s/system/jaeger/service.yaml")
+    c.run("kubectl rollout status deployment/jaeger -n null-realm --timeout=2m")
+    print("Jaeger deployed.")
+
+    # Deploy shared PostgreSQL (used by Langfuse)
+    c.run("kubectl apply -f infra/k8s/system/postgres/statefulset.yaml")
+    c.run("kubectl apply -f infra/k8s/system/postgres/service.yaml")
+    c.run("kubectl rollout status statefulset/postgres -n null-realm --timeout=3m")
+    print("PostgreSQL deployed.")
+
+    # Deploy Langfuse self-hosted (LLM observability + tracing)
+    c.run("kubectl apply -f infra/k8s/system/langfuse/deployment.yaml")
+    c.run("kubectl apply -f infra/k8s/system/langfuse/service.yaml")
+    c.run("kubectl rollout status deployment/langfuse -n null-realm --timeout=5m")
+    print("Langfuse deployed.")
+
+    print("Observability stack deployed.")
+    print("  Grafana:  http://localhost:3000  (admin / admin)")
+    print("  Jaeger:   http://localhost:16686")
+    print("  Langfuse: http://localhost:3001")
 
 
 @task(pre=[kind_up])
