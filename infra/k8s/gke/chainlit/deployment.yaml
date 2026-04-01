@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainlit
+  namespace: null-realm
+  labels:
+    app: chainlit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chainlit
+  template:
+    metadata:
+      labels:
+        app: chainlit
+    spec:
+      containers:
+        - name: chainlit
+          image: europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/ui:latest
+          ports:
+            - containerPort: 8501
+          env:
+            - name: API_WS_URL
+              value: "ws://api-server.null-realm.svc.cluster.local:8000/ws"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chainlit
+  namespace: null-realm
+spec:
+  selector:
+    app: chainlit
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: ClusterIP

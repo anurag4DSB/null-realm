@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: null-realm
+  labels:
+    app: api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      containers:
+        - name: api-server
+          image: europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/api:latest
+          ports:
+            - containerPort: 8000
+          command: ["uv", "run", "uvicorn", "nullrealm.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          env:
+            - name: LITELLM_URL
+              value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://jaeger.null-realm.svc.cluster.local:4317"
+            - name: LANGFUSE_HOST
+              value: "http://langfuse.null-realm.svc.cluster.local:3000"
+          envFrom:
+            - secretRef:
+                name: llm-api-keys
+                optional: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-server
+  namespace: null-realm
+spec:
+  selector:
+    app: api-server
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
