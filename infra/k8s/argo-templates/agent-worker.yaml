@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: agent-worker
+  namespace: null-realm-agents
+spec:
+  entrypoint: run-agent
+  serviceAccountName: argo-workflow
+  arguments:
+    parameters:
+      - name: assistant_name
+        value: research
+      - name: session_id
+        value: "unknown"
+      - name: task_input
+        value: ""
+      - name: msg_id
+        value: ""
+  templates:
+    - name: run-agent
+      inputs:
+        parameters:
+          - name: assistant_name
+          - name: session_id
+          - name: task_input
+          - name: msg_id
+      container:
+        image: null-realm-worker:latest
+        imagePullPolicy: Never
+        command: ["uv", "run", "python", "-m", "nullrealm.worker.bootstrap"]
+        env:
+          - name: ASSISTANT_NAME
+            value: "{{inputs.parameters.assistant_name}}"
+          - name: SESSION_ID
+            value: "{{inputs.parameters.session_id}}"
+          - name: TASK_INPUT
+            value: "{{inputs.parameters.task_input}}"
+          - name: MSG_ID
+            value: "{{inputs.parameters.msg_id}}"
+          - name: LITELLM_URL
+            value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
+          - name: NATS_URL
+            value: "nats://nats.null-realm.svc.cluster.local:4222"
+          - name: REGISTRY_URL
+            value: "http://api-server.null-realm.svc.cluster.local:8000"
+          - name: DATABASE_URL
+            value: "postgresql+asyncpg://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm"
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://jaeger.null-realm.svc.cluster.local:4317"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi

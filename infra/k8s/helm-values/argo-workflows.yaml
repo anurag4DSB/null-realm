@@ -1,0 +1,30 @@
+server:
+  extraArgs:
+    - --auth-mode=server
+  serviceType: NodePort
+  serviceNodePort: 30746
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+controller:
+  workflowNamespaces:
+    - null-realm-agents
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+workflow:
+  serviceAccount:
+    create: true
+    name: argo-workflow
+
+useDefaultArtifactRepo: false
