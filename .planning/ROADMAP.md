@@ -8,7 +8,7 @@ Build a multi-agent learning lab on GKE, starting with visual infrastructure (da
 
 - **IaC**: Pulumi Python (not Terraform) — real Python code for GCP infrastructure. Pulumi manages GCP resources (GKE, Cloud SQL, networking, IAM, Secret Manager). Helm manages K8s workloads.
 - **Local K8s**: Kind cluster, always available alongside GKE
-- **LLM Access**: API keys via `.env` locally, Secret Manager on GKE. Start with Gemini (Google AI Studio key), add Claude later
+- **LLM Access**: API keys via `.env` locally, Secret Manager on GKE. Start with Claude (Anthropic API key), add Gemini later for comparison
 - **Visual First**: Observability deployed before application code. UI before backend when possible
 - **GCP Project**: `helpful-rope-230010` (europe-west1 region)
 - **Task Runner**: Invoke (tasks.py) — Python-native, not Makefile
@@ -68,7 +68,7 @@ LOCAL (Kind cluster)                    GKE (Autopilot)
 Plans:
 - [x] 01-01: Project scaffold + local Kind cluster setup
 - [x] 01-02: Observability stack — Prometheus/Grafana, Jaeger, Langfuse on Kind
-- [ ] 01-03: GKE Autopilot via Pulumi + Cloud Build CI/CD + observability on GKE
+- [x] 01-03: GKE Autopilot via Pulumi + Cloud Build CI/CD + observability on GKE
 
 ### Phase 02: Chat UI + First Agent
 **Goal**: Type a message in Chainlit, get a response from a LangGraph agent, see traces in Langfuse/Jaeger.
@@ -119,7 +119,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 01. Foundation + Observability | 2/3 | In progress | - |
+| 01. Foundation + Observability | 3/3 | Complete | 2026-04-01 |
 | 02. Chat UI + First Agent | 0/2 | Not started | - |
 | 03. Streaming + Persistence | 0/2 | Not started | - |
 | 04. Multi-Agent Workflows | 0/2 | Not started | - |
