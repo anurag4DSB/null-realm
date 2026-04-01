@@ -11,11 +11,13 @@ Build a multi-agent learning lab on GKE, starting with visual infrastructure (da
 - **LLM Access**: API keys via `.env` locally, Secret Manager on GKE. Start with Gemini (Google AI Studio key), add Claude later
 - **Visual First**: Observability deployed before application code. UI before backend when possible
 - **GCP Project**: `helpful-rope-230010` (us-central1 region)
+- **Task Runner**: Invoke (tasks.py) — Python-native, not Makefile
+- **Auth**: OAuth2 Proxy + Traefik on GKE (Phase 01-03). Google OAuth login. No auth on local Kind. Upgrade path: Pomerium.
 
 ## Open Decisions (Resolve During Execution)
 
 1. **Web search tool** (Phase 02): Tavily API vs SerpAPI vs stub — decide in 02-02
-2. **Traefik timing** (Phase 01 or 03): Deploy K8s ingress early (with observability) or later (when API needs routing)
+2. ~~**Traefik timing**~~ → DECIDED: Phase 01-03 with OAuth2 Proxy
 3. **KEDA timing** (Phase 04 or later): Deploy autoscaler with Argo or defer until post-v1.0
 4. **Anthropic API key** (Phase 02 or 06): Get Claude key early for agent testing or defer until comparison phase
 

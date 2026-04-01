@@ -36,5 +36,5 @@ How we know it worked:
 
 - Custom frontend (Chainlit is the UI, not a custom Next.js app)
 - GPU workloads or fine-tuning (this is an inference lab)
-- Multi-tenant auth or user management
+- Multi-tenant user management or role-based access control (basic Google OAuth via OAuth2 Proxy IS in scope)
 - Mobile or desktop clients
