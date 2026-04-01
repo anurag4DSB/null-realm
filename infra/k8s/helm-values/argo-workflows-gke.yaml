@@ -2,6 +2,7 @@
 server:
   extraArgs:
     - --auth-mode=server
+    - --managed-namespace=null-realm-agents
   serviceType: ClusterIP
   resources:
     requests:
