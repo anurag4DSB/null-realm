@@ -4,6 +4,16 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
+  name: strip-chat-prefix
+  namespace: null-realm
+spec:
+  stripPrefix:
+    prefixes:
+      - /chat
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
   name: oauth2-auth
   namespace: null-realm
 spec:
