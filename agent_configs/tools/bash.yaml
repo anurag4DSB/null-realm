@@ -1,0 +1,18 @@
+name: bash
+version: "1.0"
+description: Execute a bash command and return its stdout/stderr
+input_schema:
+  type: object
+  properties:
+    command:
+      type: string
+      description: The bash command to execute
+    timeout:
+      type: integer
+      description: Timeout in seconds (default 30)
+      default: 30
+  required: [command]
+execution_type: python
+execution_config:
+  module: nullrealm.tools.builtins.bash
+  class: BashTool
