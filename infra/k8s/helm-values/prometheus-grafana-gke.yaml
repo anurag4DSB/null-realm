@@ -1,0 +1,95 @@
+grafana:
+  adminPassword: "admin"
+  service:
+    type: ClusterIP   # Traefik handles ingress
+  grafana.ini:
+    server:
+      root_url: "http://34.53.165.155.nip.io/grafana/"
+      serve_from_sub_path: true
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 200m
+    requests:
+      memory: 128Mi
+      cpu: 50m
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 315
+        revision: 3
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: 500m
+      requests:
+        memory: 512Mi
+        cpu: 250m
+
+# Disable node-exporter — GKE Autopilot doesn't allow privileged DaemonSets
+nodeExporter:
+  enabled: false
+
+# Disable alertmanager for dev
+alertmanager:
+  enabled: false
+
+# Disable admission webhooks — certgen image (ghcr.io) unreachable from GKE
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
+
+# Disable GKE Autopilot-incompatible scrapers (they try to create services in kube-system)
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+coreDns:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+# kube-state-metrics resource limits for Autopilot
+kubeStateMetrics:
+  resources:
+    limits:
+      memory: 128Mi
+      cpu: 100m
+    requests:
+      memory: 64Mi
+      cpu: 50m
