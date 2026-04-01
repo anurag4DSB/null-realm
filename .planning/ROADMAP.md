@@ -77,7 +77,7 @@ Plans:
 
 Plans:
 - [x] 02-01: Chainlit chat UI + FastAPI skeleton with WebSocket
-- [ ] 02-02: LiteLLM proxy + LangGraph research agent + OpenLLMetry tracing
+- [x] 02-02: LiteLLM proxy + LangGraph research agent + OpenLLMetry tracing
 
 ### Phase 03: Streaming + Persistence
 **Goal**: Tokens stream in real-time via NATS. Registry data persisted in PostgreSQL. CRUD API works.
@@ -120,7 +120,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 01. Foundation + Observability | 3/3 | Complete | 2026-04-01 |
-| 02. Chat UI + First Agent | 1/2 | In progress | - |
+| 02. Chat UI + First Agent | 2/2 | Complete | 2026-04-01 |
 | 03. Streaming + Persistence | 0/2 | Not started | - |
 | 04. Multi-Agent Workflows | 0/2 | Not started | - |
 | 05. Context Engineering | 0/2 | Not started | - |
