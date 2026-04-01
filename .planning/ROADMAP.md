@@ -85,8 +85,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: NATS JetStream + agent-to-UI streaming pipeline
-- [ ] 03-02: PostgreSQL + pgvector + 4 registry tables + CRUD API + seed data
+- [x] 03-01: NATS JetStream + agent-to-UI streaming pipeline
+- [x] 03-02: PostgreSQL + pgvector + 4 registry tables + CRUD API + seed data
 
 ### Phase 04: Multi-Agent Workflows
 **Goal**: Trigger a multi-step workflow in Chainlit, see 4 agent pods execute sequentially with per-step tracing.
@@ -121,7 +121,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 01. Foundation + Observability | 3/3 | Complete | 2026-04-01 |
 | 02. Chat UI + First Agent | 2/2 | Complete | 2026-04-01 |
-| 03. Streaming + Persistence | 0/2 | Not started | - |
+| 03. Streaming + Persistence | 2/2 | Complete | 2026-04-01 |
 | 04. Multi-Agent Workflows | 0/2 | Not started | - |
 | 05. Context Engineering | 0/2 | Not started | - |
 | 06. Model Comparison + Eval | 0/2 | Not started | - |
