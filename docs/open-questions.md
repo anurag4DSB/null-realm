@@ -37,24 +37,9 @@ When a second message is sent, the viewport jumps to show the new question at th
 
 ## GKE Deployment Cadence
 
-### When to deploy to GKE?
-The plan doesn't specify when to push each phase to GKE. Current approach:
-- Phase 01: deployed to GKE (observability, auth, ingress)
-- Phase 02: deployed to GKE (chat UI, agent, LiteLLM)
-- Phase 03: **Kind only** — not yet deployed to GKE
+### GKE deployment cadence
 
-**Options**:
-- Deploy after every phase completion
-- Deploy only at milestones (e.g., after Phase 04 when multi-agent is ready)
-- Deploy continuously (once Cloud Build trigger is connected)
-
-**Decision**: Deploy after each phase for now (manual `docker buildx --platform linux/amd64 --push`). Connect Cloud Build trigger when ready for continuous deployment.
-
-### What's needed for Phase 03 GKE deploy:
-- [ ] NATS StatefulSet for GKE (`infra/k8s/gke/nats/`)
-- [ ] Updated api-server with DATABASE_URL pointing to Cloud SQL
-- [ ] Rebuild AMD64 images and push to Artifact Registry
-- [ ] Run seed script on GKE api-server pod
+**Decision (resolved)**: Deploy to GKE after every phase (or within phases when meaningful changes land). Manual deploy via `docker buildx --platform linux/amd64 --push` + `kubectl apply`. Cloud Build trigger is NOT connected (company GCP + personal repo) — don't assume it in plans.
 
 ---
 

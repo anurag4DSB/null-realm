@@ -20,7 +20,7 @@ class NATSBus:
 
     async def connect(self) -> "NATSBus":
         url = os.getenv("NATS_URL", "nats://nats.null-realm.svc.cluster.local:4222")
-        self._nc = await nats.connect(url)
+        self._nc = await nats.connect(url, connect_timeout=5, max_reconnect_attempts=1)
         self._js = self._nc.jetstream()
         # Create stream for agent events
         try:
