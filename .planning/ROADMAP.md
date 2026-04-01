@@ -122,6 +122,6 @@ Plans:
 | 01. Foundation + Observability | 3/3 | Complete | 2026-04-01 |
 | 02. Chat UI + First Agent | 2/2 | Complete | 2026-04-01 |
 | 03. Streaming + Persistence | 2/2 | Complete | 2026-04-01 |
-| 04. Multi-Agent Workflows | 0/2 | Not started | - |
+| 04. Multi-Agent Workflows | 2/2 | Complete | 2026-04-01 |
 | 05. Context Engineering | 0/2 | Not started | - |
 | 06. Model Comparison + Eval | 0/2 | Not started | - |
