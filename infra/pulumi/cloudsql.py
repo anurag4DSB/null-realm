@@ -2,6 +2,8 @@
 import pulumi
 import pulumi_gcp as gcp
 
+_config = pulumi.Config()
+
 LABELS = {"user": "anurag", "project": "null-realm"}
 
 
@@ -46,7 +48,7 @@ def create_cloud_sql(network, vpc_connection):
         "null-realm-db-user",
         name="nullrealm",
         instance=db_instance.name,
-        password="REDACTED_PASSWORD",
+        password=_config.require_secret("db_password"),
         project="YOUR_GCP_PROJECT",
     )
 
