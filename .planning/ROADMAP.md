@@ -67,7 +67,7 @@ LOCAL (Kind cluster)                    GKE (Autopilot)
 
 Plans:
 - [x] 01-01: Project scaffold + local Kind cluster setup
-- [ ] 01-02: Observability stack — Prometheus/Grafana, Jaeger, Langfuse on Kind
+- [x] 01-02: Observability stack — Prometheus/Grafana, Jaeger, Langfuse on Kind
 - [ ] 01-03: GKE Autopilot via Pulumi + Cloud Build CI/CD + observability on GKE
 
 ### Phase 02: Chat UI + First Agent
@@ -119,7 +119,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 01. Foundation + Observability | 1/3 | In progress | - |
+| 01. Foundation + Observability | 2/3 | In progress | - |
 | 02. Chat UI + First Agent | 0/2 | Not started | - |
 | 03. Streaming + Persistence | 0/2 | Not started | - |
 | 04. Multi-Agent Workflows | 0/2 | Not started | - |

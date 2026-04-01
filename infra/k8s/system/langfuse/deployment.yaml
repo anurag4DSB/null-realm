@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langfuse
+  namespace: null-realm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langfuse
+  template:
+    metadata:
+      labels:
+        app: langfuse
+    spec:
+      containers:
+        - name: langfuse
+          image: langfuse/langfuse:2
+          env:
+            - name: DATABASE_URL
+              value: postgresql://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm
+            - name: NEXTAUTH_URL
+              value: http://localhost:3001
+            - name: NEXTAUTH_SECRET
+              value: supersecret-langfuse-nextauth-key-dev
+            - name: SALT
+              value: supersecret-langfuse-salt-dev
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES
+              value: "false"
+            - name: PORT
+              value: "3000"
+          ports:
+            - containerPort: 3000
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+            requests:
+              memory: 256Mi
+              cpu: 100m

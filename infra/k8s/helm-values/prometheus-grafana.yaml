@@ -1,0 +1,46 @@
+grafana:
+  adminPassword: "admin"
+  service:
+    type: NodePort
+    nodePort: 30002
+  persistence:
+    enabled: false
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 200m
+    requests:
+      memory: 128Mi
+      cpu: 50m
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 315
+        revision: 3
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    retention: 24h
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: 500m
+      requests:
+        memory: 256Mi
+        cpu: 100m
+
+alertmanager:
+  enabled: false
