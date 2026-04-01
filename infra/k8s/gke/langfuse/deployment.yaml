@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langfuse
+  namespace: null-realm
+  labels:
+    app: langfuse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langfuse
+  template:
+    metadata:
+      labels:
+        app: langfuse
+    spec:
+      containers:
+        - name: langfuse
+          image: langfuse/langfuse:2
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://nullrealm:nullrealm_gke_dev@10.5.0.3:5432/nullrealm"
+            - name: NEXTAUTH_URL
+              value: "http://langfuse.null-realm.svc.cluster.local:3000"
+            - name: NEXTAUTH_SECRET
+              value: "supersecret-langfuse-nextauth-key-gke"
+            - name: SALT
+              value: "supersecret-langfuse-salt-gke"
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: PORT
+              value: "3000"
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+            requests:
+              memory: 256Mi
+              cpu: 250m
+          readinessProbe:
+            httpGet:
+              path: /api/public/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10

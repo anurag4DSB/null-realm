@@ -50,4 +50,27 @@ def create_network():
         reserved_peering_ranges=[private_ip_alloc.name],
     )
 
+    # Cloud NAT — required for private GKE nodes to pull external images
+    router = gcp.compute.Router(
+        "null-realm-router",
+        name="null-realm-router",
+        network=network.id,
+        region="europe-west1",
+        project="helpful-rope-230010",
+    )
+
+    gcp.compute.RouterNat(
+        "null-realm-nat",
+        name="null-realm-nat",
+        router=router.name,
+        region="europe-west1",
+        project="helpful-rope-230010",
+        nat_ip_allocate_option="AUTO_ONLY",
+        source_subnetwork_ip_ranges_to_nat="ALL_SUBNETWORKS_ALL_IP_RANGES",
+        log_config=gcp.compute.RouterNatLogConfigArgs(
+            enable=True,
+            filter="ERRORS_ONLY",
+        ),
+    )
+
     return network, subnet, private_vpc_connection
