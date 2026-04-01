@@ -24,6 +24,8 @@ spec:
           env:
             - name: LITELLM_URL
               value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
+            - name: NATS_URL
+              value: "nats://nats.null-realm.svc.cluster.local:4222"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://jaeger.null-realm.svc.cluster.local:4317"
             - name: LANGFUSE_HOST
