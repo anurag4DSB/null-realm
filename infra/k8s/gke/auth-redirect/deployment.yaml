@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-redirect
+  namespace: null-realm
+  labels:
+    app: auth-redirect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-redirect
+  template:
+    metadata:
+      labels:
+        app: auth-redirect
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 64Mi
+              cpu: 50m
+      volumes:
+        - name: config
+          configMap:
+            name: auth-redirect-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-redirect
+  namespace: null-realm
+spec:
+  selector:
+    app: auth-redirect
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
