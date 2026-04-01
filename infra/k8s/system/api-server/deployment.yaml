@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: null-realm
+  labels:
+    app: api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      containers:
+        - name: api-server
+          image: null-realm-api:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          command: ["uv", "run", "uvicorn", "nullrealm.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
