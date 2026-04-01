@@ -283,6 +283,15 @@ wheels = [
 ]
 
 [[package]]
+name = "backoff"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/d7/5bbeb12c44d7c4f2fb5b56abce497eb5ed9f34d85701de869acedd602619/backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba", size = 17001, upload-time = "2022-10-05T19:19:32.061Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/73/b6e24bd22e6720ca8ee9a85a0c4a2971af8497d8f3193fa05390cbd46e09/backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8", size = 15148, upload-time = "2022-10-05T19:19:30.546Z" },
+]
+
+[[package]]
 name = "bidict"
 version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1180,6 +1189,39 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-openai"
+version = "1.1.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "openai" },
+    { name = "tiktoken" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/fd/7dee16e882c4c1577d48db174d85aa3a0ee09ba61eb6a5d41650285ca80c/langchain_openai-1.1.12.tar.gz", hash = "sha256:ccf5ef02c896f6807b4d0e51aaf678a72ce81ae41201cae8d65e11eeff9ecb79", size = 1114119, upload-time = "2026-03-23T18:59:19.211Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/a6/68fb22e3604015e6f546fa1d3677d24378b482855ae74710cbf4aec44132/langchain_openai-1.1.12-py3-none-any.whl", hash = "sha256:da71ca3f2d18c16f7a2443cc306aa195ad2a07054335ac9b0626dcae02b6a0c5", size = 88487, upload-time = "2026-03-23T18:59:17.978Z" },
+]
+
+[[package]]
+name = "langfuse"
+version = "4.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "backoff" },
+    { name = "httpx" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f9/de/b319a127e231e6ac10fad7a75e040b0c961669d9aa1f372f131d48ee4835/langfuse-4.0.5.tar.gz", hash = "sha256:f07fc88526d0699b3696df6ff606bc3c509c86419b5f551dea3d95ed31b4b7f8", size = 273892, upload-time = "2026-04-01T11:05:48.135Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/92/b4699c9ce5f2e1ab04e7fc1c656cc14a522f10f2c7170d6e427013ce0d37/langfuse-4.0.5-py3-none-any.whl", hash = "sha256:48ef89fec839b40f0f0e68b26c160e7bc0178cf10c8e53932895f4aed428b4df", size = 472730, upload-time = "2026-04-01T11:05:46.948Z" },
+]
+
+[[package]]
 name = "langgraph"
 version = "1.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1556,6 +1598,9 @@ dependencies = [
     { name = "chainlit" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "langchain-core" },
+    { name = "langchain-openai" },
+    { name = "langfuse" },
     { name = "langgraph" },
     { name = "litellm" },
     { name = "nats-py" },
@@ -1566,6 +1611,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "traceloop-sdk" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "websockets" },
 ]
@@ -1585,6 +1631,9 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "invoke", marker = "extra == 'dev'", specifier = ">=2.2.0" },
+    { name = "langchain-core", specifier = ">=1.2.23" },
+    { name = "langchain-openai", specifier = ">=1.1.12" },
+    { name = "langfuse", specifier = ">=4.0.5" },
     { name = "langgraph", specifier = ">=0.4.0" },
     { name = "litellm", specifier = ">=1.50.0" },
     { name = "nats-py", specifier = ">=2.9.0" },
@@ -1598,6 +1647,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
+    { name = "traceloop-sdk", specifier = ">=0.57.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
     { name = "websockets", specifier = ">=16.0" },
 ]

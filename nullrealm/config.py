@@ -30,8 +30,12 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""
     langfuse_host: str = "http://localhost:3001"
 
-    # --- Jaeger (distributed tracing) ---
+    # --- Jaeger / OpenTelemetry (distributed tracing) ---
     jaeger_endpoint: str = "http://localhost:4318"
+    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+
+    # --- LiteLLM Proxy ---
+    litellm_url: str = "http://localhost:4000/v1"
 
     # --- Service settings ---
     api_host: str = "0.0.0.0"
