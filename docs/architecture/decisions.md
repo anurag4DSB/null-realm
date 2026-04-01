@@ -87,6 +87,20 @@ Argo pod (agent) → NATS → API server → WebSocket → Chainlit
 
 The event schemas are the contract. Only the transport changes.
 
+### Opt-in NATS connection
+
+NATS connection is gated by the `NATS_URL` env var. If not set, the API server skips NATS entirely — no connection attempt, no error, no warning. This keeps GKE logs clean (where NATS isn't deployed) while Kind connects automatically (NATS_URL is in the deployment env vars).
+
+```python
+# main.py lifespan
+if os.getenv("NATS_URL"):
+    # connect to NATS
+else:
+    app.state.nats_bus = None  # silent skip
+```
+
+**Rule**: Infrastructure dependencies that aren't available in all environments should be opt-in via env var, not fail-and-catch. Noisy startup errors hide real problems.
+
 ---
 
 ## ADR-003: OAuth2 Proxy as reverse proxy + ForwardAuth hybrid
