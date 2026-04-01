@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from nullrealm.api.routes.health import router as health_router
 from nullrealm.api.routes.registry import router as registry_router
+from nullrealm.api.routes.workflows import router as workflows_router
 from nullrealm.api.websocket import websocket_endpoint
 from nullrealm.communication.nats_bus import NATSBus
 from nullrealm.observability.tracing import init_tracing
@@ -70,6 +71,9 @@ app.include_router(health_router)
 
 # Registry CRUD routes
 app.include_router(registry_router)
+
+# Workflow execution routes
+app.include_router(workflows_router)
 
 # WebSocket route
 app.add_api_websocket_route("/ws/{session_id}", websocket_endpoint)

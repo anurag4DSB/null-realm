@@ -1,0 +1,7 @@
+name: code_reviewer
+prompt_name: code_reviewer
+model_preference: claude-sonnet
+tool_allowlist: [file_read]
+system_prompt: |
+  You are a code review agent. Review the implementation for correctness, security,
+  and best practices. List specific issues found and suggestions for improvement.
