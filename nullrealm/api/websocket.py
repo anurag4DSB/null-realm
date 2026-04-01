@@ -15,16 +15,19 @@ logger = logging.getLogger(__name__)
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     """Handle WebSocket connections with direct streaming from LangGraph."""
     await websocket.accept()
+    logger.info("WebSocket accepted for session %s", session_id)
 
     try:
         while True:
             data = await websocket.receive_text()
             msg = ChatMessage.model_validate_json(data)
+            logger.info("Received message for session %s: %s", session_id, msg.content[:50])
 
             try:
                 await _stream_agent_response(websocket, msg.content, session_id)
+                logger.info("Streaming complete for session %s", session_id)
             except Exception:
-                logger.exception("Streaming failed, falling back to non-streaming")
+                logger.exception("Streaming failed for session %s, falling back", session_id)
                 try:
                     result = await run_agent(msg.content)
                     response = ChatMessage(
@@ -33,8 +36,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         session_id=session_id,
                     )
                     await websocket.send_text(response.model_dump_json())
+                    logger.info("Fallback response sent for session %s", session_id)
                 except Exception:
-                    logger.exception("Non-streaming fallback also failed")
+                    logger.exception("Fallback also failed for session %s", session_id)
                     error = ChatMessage(
                         type="assistant_message",
                         content="Sorry, something went wrong.",
@@ -43,7 +47,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await websocket.send_text(error.model_dump_json())
 
     except WebSocketDisconnect:
-        pass
+        logger.info("WebSocket disconnected for session %s", session_id)
 
 
 async def _stream_agent_response(
@@ -53,6 +57,8 @@ async def _stream_agent_response(
 ):
     """Stream agent response directly to WebSocket using LangGraph astream_events."""
     agent = _get_agent()
+    logger.info("Starting agent streaming for session %s", session_id)
+    chunk_count = 0
 
     async for event in agent.astream_events(
         {"messages": [HumanMessage(content=user_message)]},
@@ -65,7 +71,7 @@ async def _stream_agent_response(
             if chunk and hasattr(chunk, "content") and chunk.content:
                 content = chunk.content
                 if isinstance(content, str) and content:
-                    logger.info("Streaming chunk: %s", content[:50])
+                    chunk_count += 1
                     await websocket.send_text(json.dumps({
                         "type": "text_delta",
                         "content": content,
@@ -99,7 +105,7 @@ async def _stream_agent_response(
             }))
 
     # Signal completion
-    logger.info("Streaming complete, sending task_complete")
+    logger.info("Streaming complete for session %s (%d chunks sent)", session_id, chunk_count)
     await websocket.send_text(json.dumps({
         "type": "task_complete",
         "session_id": session_id,

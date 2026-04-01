@@ -205,3 +205,44 @@ async def on_message(message):
 ```
 
 Auto-reconnect if the WebSocket drops between messages.
+
+---
+
+## ADR-007: No silent failures — structured logging at every boundary
+
+**Date**: 2026-04-01
+**Status**: Accepted
+**Context**: Chat on GKE stopped responding with no errors in logs. Agent worked when tested directly inside the pod, but the Chainlit→API→LangGraph pipeline silently failed.
+
+### Problem
+
+The WebSocket handler caught exceptions with bare `except Exception: pass` or `except WebSocketDisconnect: pass`. When something went wrong (connection drop, streaming error, timeout), there was no log entry — just "connection open" then "connection closed".
+
+Debugging required manual `kubectl exec` to test each component individually. With 4 services in the chain (Chainlit → API → LiteLLM → Claude), finding the broken link took too long.
+
+### Rule
+
+Every boundary in the pipeline must log:
+1. **Entry**: what was received (message content, session ID)
+2. **Exit**: what was sent (chunk count, completion status)
+3. **Failure**: full exception with context (session ID, what was being attempted)
+
+```python
+# BAD — silent failure
+except Exception:
+    pass
+
+# GOOD — observable failure
+except Exception:
+    logger.exception("Streaming failed for session %s", session_id)
+```
+
+### Applied to
+
+- `nullrealm/api/websocket.py`: logs message received, streaming start/complete, chunk count, disconnect, every exception
+- `nullrealm/communication/nats_bus.py`: logs connect/disconnect/publish failures
+- `nullrealm/main.py`: logs NATS/DB init success or failure
+
+### Future
+
+Phase 04+ should add structured JSON logging with correlation IDs (session_id propagated through NATS → Jaeger → Langfuse) so traces can be followed across services.
