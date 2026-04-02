@@ -100,11 +100,13 @@ Data IS in Prometheus (verified via Explore). Dashboard panels just need query u
 
 ---
 
-## Automatic re-indexing on PR merge (future)
+## Automatic re-indexing on PR merge (partially addressed)
 
-Currently indexing is manual (`python -m nullrealm.context.indexer`). Future state: a system that automatically updates the knowledge graph + embeddings when code changes.
+**What exists now**: On-demand indexing via the `index_repo` MCP tool. Any MCP client (Claude Code, Cursor, etc.) can trigger a full re-index by calling `index_repo(url, branch)`. Re-indexing is idempotent -- old data is replaced. The `delete_repo_index` tool also exists for clean removal.
 
-**Architecture**:
+**What's still missing**: Automatic webhook-triggered re-indexing on PR merge. The manual/on-demand path works but requires a human to remember to re-index after code changes.
+
+**Remaining architecture** (future):
 ```
 GitHub PR merged → Webhook → Cloud Run/K8s Job → 
   1. git pull changed files
@@ -120,7 +122,7 @@ GitHub PR merged → Webhook → Cloud Run/K8s Job →
 - Argo Events → Argo Workflow (already have Argo, native K8s)
 - GitHub Actions → call GKE API (simplest, but requires GitHub-GKE auth)
 
-**When**: Post-v1.0, after Phase 06. The manual pipeline must work well first.
+**When**: Post-v1.0, after Phase 06. Incremental re-indexing (changed files only) is the main gap.
 
 ---
 
