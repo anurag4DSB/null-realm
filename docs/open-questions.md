@@ -126,6 +126,26 @@ GitHub PR merged → Webhook → Cloud Run/K8s Job →
 
 ---
 
+## API server hangs on GKE after Phase 05 deps added
+
+The API server Docker image installs ALL pyproject.toml deps including sentence-transformers (~500MB), google-cloud-aiplatform, pacmap, plotly, streamlit. These are needed by the MCP server and viz tools but NOT by the API server.
+
+**Symptom**: `uv run uvicorn nullrealm.main:app` hangs after `uv sync` — never starts.
+**Root cause**: Heavy deps (2GB+) in a pod with limited memory. Or `uv run` is recompiling/downloading at startup.
+**Quick fix**: Bump API server memory to 3Gi.
+**Proper fix**: Separate dependency groups in pyproject.toml:
+```toml
+[project.optional-dependencies]
+api = ["fastapi", "uvicorn", "sqlalchemy", "asyncpg", ...]  # lightweight
+ml = ["sentence-transformers", "google-cloud-aiplatform", ...]  # heavy
+viz = ["pacmap", "plotly", "streamlit", ...]  # viz only
+```
+Then `Dockerfile.api` installs only `uv sync --extra api`, not everything.
+
+**When**: Next session, before Phase 06.
+
+---
+
 ## invoke binary missing
 
 `uv run invoke build` stopped working — the `invoke` binary isn't found in the venv. Direct `docker build` works. Need to debug why `invoke` disappeared from the path.
