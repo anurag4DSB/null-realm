@@ -260,3 +260,76 @@ except Exception:
 ### Future
 
 Phase 04+ should add structured JSON logging with correlation IDs (session_id propagated through NATS → Jaeger → Langfuse) so traces can be followed across services.
+
+---
+
+## ADR-008: Graph RAG over plain vector RAG for context engineering
+
+**Date**: 2026-04-02
+**Status**: Accepted
+**Context**: Phase 05 originally planned pure vector RAG — embed code chunks in pgvector, search by similarity. This works for single-repo questions but fails for the actual use case: multiple microservices that call each other.
+
+### Problem with pure vector RAG
+
+Vector search finds code that *looks similar* to the query, but misses code that is *related* by architecture:
+
+```
+Query: "how does authentication work end-to-end?"
+
+Vector search returns:
+  ✅ auth/token.py:validate()          — has "auth" in code
+  ✅ middleware/auth.py:check()         — has "auth" in code
+  ❌ billing/charge.py:pre_auth_check() — called AFTER auth, but no "auth" keyword
+  ❌ config/routes.yaml                 — defines which services require auth
+```
+
+The billing service depends on auth but shares no vocabulary with it. Vector similarity = 0. In a microservice architecture, the connections between services are as important as the code within them.
+
+### Decision: Hybrid Graph RAG
+
+Combine two retrieval strategies:
+
+1. **pgvector (semantic similarity)**: find code chunks that match the query meaning
+2. **Neo4j (graph traversal)**: starting from vector hits, walk the graph to find connected code — imports, callers, dependents, service-to-service calls
+
+```
+Vector search → starting points
+     │
+     ▼
+Graph expansion → connected code (1-2 hops)
+     │
+     ▼
+Merged + ranked → rich context for the agent
+```
+
+### Why Neo4j over PostgreSQL edges table
+
+The original plan (05-02) stored the graph as a JSONB column in PostgreSQL. Neo4j was chosen because:
+- Native graph traversal (vs recursive CTEs which are slow and complex)
+- Built-in browser at port 7474 — interactive visualization out of the box
+- Cypher query language is readable: `MATCH (a)-[:CALLS]->(b) WHERE a.name = "validate" RETURN b`
+- The user's "visual first" principle: see connections, don't just trust them
+
+### Why PaCMAP over t-SNE/UMAP for dimensionality reduction
+
+Research (Wang et al., JMLR) shows PaCMAP preserves both global and local structure better than t-SNE (local only) or UMAP (weak global). For code embeddings, global structure matters — repos and languages should form distinct regions in the visualization, not just local function clusters.
+
+### Why 4 visualization tools (no black boxes)
+
+The user explicitly rejected black-box RAG: "just RAG embeddings is a black box." Each visualization serves a different purpose:
+
+| Tool | Purpose |
+|------|---------|
+| **Neo4j Browser** | Explore graph: click nodes, see connections, run Cypher |
+| **Apple Embedding Atlas** | 2D map: see clusters, density, hover for code snippets |
+| **TensorBoard Projector** | 3D rotation: spatial understanding of embedding space |
+| **Renumics Spotlight** | Data quality: filter outliers, find duplicates, audit chunks |
+
+Plus **Chainlit retrieval transparency**: when an agent uses code_search or graph_query, show the user exactly what was retrieved, from where, with what score. No hidden context.
+
+### Cost
+
+- Neo4j community edition: ~$0.50/day on GKE (256Mi pod)
+- Embedding viz tools: ~$0.30/day (lightweight Streamlit/static pods)
+- Vertex AI embeddings: ~$0.01 per 1000 chunks indexed (one-time)
+- Total Phase 05 addition: ~$1/day on top of existing ~$5.50/day
