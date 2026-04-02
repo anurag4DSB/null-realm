@@ -263,6 +263,54 @@ Phase 04+ should add structured JSON logging with correlation IDs (session_id pr
 
 ---
 
+## ADR-009: MCP server as universal agent interface with Google OAuth
+
+**Date**: 2026-04-02
+**Status**: Accepted
+**Context**: Agents need access to the knowledge graph (pgvector + Neo4j). Multiple clients need access: Claude Code, Cursor, null-realm's own agents, future tools.
+
+### Decision
+
+Expose Graph RAG as an MCP server at `hopocalypse.34.53.165.155.nip.io/mcp` using the MCP 2025-06-18 Streamable HTTP spec. Authentication via Google OAuth token flow (not cookies).
+
+### Why MCP over REST API
+
+REST API works but is proprietary — every client needs custom integration. MCP is the standard protocol that Claude Code, Cursor, and other AI tools already speak. Build once, connect everywhere.
+
+### Why token-based auth (not our existing cookie-based OAuth2 Proxy)
+
+MCP clients are not browsers. They can't handle cookie-based auth flows. The MCP server implements its own OAuth token exchange:
+1. Client connects → server returns 401
+2. Client opens browser → Google login (same client ID as OAuth2 Proxy)
+3. Google redirects to `/oauth/callback` with auth code
+4. Server exchanges code for token, issues JWT
+5. Client sends JWT as Bearer token on all requests
+
+Same Google credentials, same consent screen, same users. Just tokens instead of cookies.
+
+### Architecture
+
+```
+Claude Code / Any MCP client
+     │  POST/GET /mcp + Bearer JWT
+     ▼
+hopocalypse.34.53.165.155.nip.io (Traefik, NO OAuth2 Proxy middleware)
+     │
+     ▼
+MCP Server (FastAPI)
+├─ /mcp          → Streamable HTTP (JSON-RPC + SSE)
+├─ /oauth/*      → Google OAuth token exchange
+├─ Tools: code_search, graph_query, graph_path, service_map
+└─ Resources: repo://*/index, repo://*/graph
+```
+
+### Two modes
+
+- **Remote (GKE)**: Streamable HTTP at `hopocalypse.34.53.165.155.nip.io/mcp`, Google OAuth
+- **Local (stdio)**: `python -m nullrealm.mcp_server --stdio`, no auth (local process = trusted)
+
+---
+
 ## ADR-008: Graph RAG over plain vector RAG for context engineering
 
 **Date**: 2026-04-02
