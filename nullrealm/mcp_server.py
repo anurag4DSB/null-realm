@@ -153,41 +153,135 @@ async def health():
     return {"status": "ok", "service": "mcp-server"}
 
 
-# --- OAuth endpoints ------------------------------------------------------
+# --- OAuth discovery + endpoints (RFC 8414 for MCP SDK) ------------------
+
+_BASE_URL = os.getenv("MCP_BASE_URL", "http://hopocalypse.34.53.165.155.nip.io")
+
+# In-memory store for pending auth codes (code → email mapping)
+_pending_codes: dict[str, str] = {}
+
+
+@app.get("/.well-known/oauth-authorization-server")
+async def oauth_metadata():
+    """RFC 8414 — OAuth Authorization Server Metadata.
+    Claude Code's MCP SDK discovers auth endpoints from here."""
+    return {
+        "issuer": _BASE_URL,
+        "authorization_endpoint": f"{_BASE_URL}/oauth/authorize",
+        "token_endpoint": f"{_BASE_URL}/oauth/token",
+        "registration_endpoint": f"{_BASE_URL}/oauth/register",
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code"],
+        "code_challenge_methods_supported": ["S256"],
+        "token_endpoint_auth_methods_supported": ["none"],
+    }
+
+
+@app.post("/oauth/register")
+async def register_client(request: Request):
+    """Dynamic Client Registration (RFC 7591).
+    Claude Code registers itself as an OAuth client before starting the flow."""
+    body = await request.json()
+    # Accept any client registration — we trust the MCP SDK
+    client_id = "mcp-client"
+    return {
+        "client_id": client_id,
+        "client_name": body.get("client_name", "MCP Client"),
+        "redirect_uris": body.get("redirect_uris", []),
+        "grant_types": ["authorization_code"],
+        "response_types": ["code"],
+        "token_endpoint_auth_method": "none",
+    }
+
 
 @app.get("/oauth/authorize")
-async def authorize():
-    """Redirect the user to Google's OAuth2 consent screen."""
-    url = await get_authorize_url()
+async def authorize(
+    client_id: str = Query(None),
+    redirect_uri: str = Query(None),
+    state: str = Query(None),
+    code_challenge: str = Query(None),
+    code_challenge_method: str = Query(None),
+    response_type: str = Query(None),
+    scope: str = Query(None),
+):
+    """Start OAuth flow — redirect to Google, then back to the MCP client."""
+    # Store redirect_uri and state so callback can redirect back to Claude Code
+    import secrets
+    session_key = secrets.token_hex(16)
+    _pending_codes[session_key] = {
+        "redirect_uri": redirect_uri or f"{_BASE_URL}/oauth/callback",
+        "state": state or "",
+        "code_challenge": code_challenge or "",
+    }
+    # Redirect to Google, using our own callback to intercept
+    url = await get_authorize_url(state=session_key)
     return RedirectResponse(url)
 
 
 @app.get("/oauth/callback")
-async def callback(code: str = Query(...)):
-    """Handle the Google OAuth2 callback, exchange code for MCP JWT."""
+async def callback(code: str = Query(...), state: str = Query("")):
+    """Google redirects here. Exchange code, then redirect back to Claude Code with our code."""
+    # Exchange Google auth code for access token
     try:
         google_tokens = await exchange_code(code)
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Google token exchange failed: {exc.response.text}",
-        ) from exc
+        raise HTTPException(502, f"Google token exchange failed: {exc.response.text}") from exc
 
     access_token = google_tokens.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=502, detail="No access_token from Google")
+        raise HTTPException(502, "No access_token from Google")
 
-    try:
-        email = await get_user_email(access_token)
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to fetch user info: {exc.response.text}",
-        ) from exc
+    email = await get_user_email(access_token)
+    logger.info("OAuth callback for %s", email)
 
-    mcp_token = create_mcp_token(email)
-    logger.info("Issued MCP token for %s", email)
-    return {"access_token": mcp_token, "token_type": "bearer", "email": email}
+    # Generate our own auth code that Claude Code will exchange at /oauth/token
+    import secrets
+    our_code = secrets.token_hex(32)
+    _pending_codes[our_code] = {"email": email}
+
+    # Get the original redirect_uri from the authorize step
+    session = _pending_codes.pop(state, {})
+    redirect_uri = session.get("redirect_uri", f"{_BASE_URL}/oauth/callback")
+    original_state = session.get("state", "")
+
+    # Redirect back to Claude Code's redirect_uri with our code
+    from urllib.parse import urlencode
+    params = {"code": our_code}
+    if original_state:
+        params["state"] = original_state
+    return RedirectResponse(f"{redirect_uri}?{urlencode(params)}")
+
+
+@app.post("/oauth/token")
+async def token_exchange(request: Request):
+    """Token endpoint — Claude Code exchanges our auth code for an access token."""
+    # Accept both form-encoded and JSON
+    content_type = request.headers.get("content-type", "")
+    if "json" in content_type:
+        body = await request.json()
+    else:
+        form = await request.form()
+        body = dict(form)
+
+    grant_type = body.get("grant_type")
+    code = body.get("code")
+
+    if grant_type != "authorization_code" or not code:
+        raise HTTPException(400, detail="Invalid grant_type or missing code")
+
+    # Look up the pending code
+    pending = _pending_codes.pop(code, None)
+    if not pending or "email" not in pending:
+        raise HTTPException(400, detail="Invalid or expired code")
+
+    # Issue JWT
+    mcp_token = create_mcp_token(pending["email"])
+    logger.info("Issued MCP token for %s via token exchange", pending["email"])
+    return {
+        "access_token": mcp_token,
+        "token_type": "bearer",
+        "expires_in": 86400,
+    }
 
 
 @app.get("/oauth/verify")
