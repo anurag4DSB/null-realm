@@ -1,0 +1,35 @@
+# Renumics Spotlight — interactive dataset explorer for embeddings
+# At runtime: export parquet from pgvector, then serve with spotlight.show()
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+RUN pip install --no-cache-dir \
+    renumics-spotlight \
+    sqlalchemy[asyncio] \
+    asyncpg \
+    pandas \
+    numpy \
+    pacmap \
+    pyarrow
+
+# Copy the export script
+COPY viz/tools/export_data.py /app/export_data.py
+
+# Copy the spotlight server script
+COPY viz/tools/spotlight_server.py /app/spotlight_server.py
+
+# Copy the entrypoint
+COPY viz/tools/spotlight_entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+EXPOSE 8080
+
+CMD ["/app/entrypoint.sh"]

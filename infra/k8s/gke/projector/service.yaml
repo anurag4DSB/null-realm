@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: projector
+  namespace: null-realm
+spec:
+  selector:
+    app: projector
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

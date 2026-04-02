@@ -1,0 +1,55 @@
+# TensorBoard Embedding Projector — standalone self-hosted
+# Two-stage:
+#   1. Clone the standalone projector from tensorflow/embedding-projector-standalone
+#   2. At runtime: export TSV data from pgvector, then serve via python http.server
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install git + system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone the standalone projector (it's just static HTML/JS/CSS)
+RUN git clone --depth 1 https://github.com/tensorflow/embedding-projector-standalone.git /app/projector
+
+# Install Python deps for data export
+RUN pip install --no-cache-dir \
+    sqlalchemy[asyncio] \
+    asyncpg \
+    pandas \
+    numpy \
+    pacmap \
+    pyarrow
+
+# Copy the export script
+COPY viz/tools/export_data.py /app/export_data.py
+
+# Copy the entrypoint
+COPY viz/tools/projector_entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# nginx config
+RUN cat > /etc/nginx/sites-available/default <<'NGINX'
+server {
+    listen 8080;
+    server_name _;
+    root /app/projector;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+        add_header Access-Control-Allow-Origin *;
+    }
+}
+NGINX
+
+# Create data directory inside projector tree
+RUN mkdir -p /app/projector/data /app/projector/oss_data
+
+EXPOSE 8080
+
+CMD ["/app/entrypoint.sh"]
