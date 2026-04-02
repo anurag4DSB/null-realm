@@ -112,6 +112,28 @@ async def service_map() -> str:
     return await do_service_map()
 
 
+@mcp.tool()
+async def context_assemble(query: str) -> str:
+    """Assemble rich context for a query using hybrid Graph RAG.
+
+    Combines three sources:
+    1. REPO_INDEX.md — high-level architecture summary
+    2. Vector search (pgvector) — semantically similar code chunks
+    3. Graph expansion (Neo4j) — symbols connected to the vector hits
+
+    Use this when you need comprehensive codebase understanding for a task,
+    not just a single code search. Returns structured context ready to use.
+    """
+    from nullrealm.context.assembler import ContextAssembler
+
+    assembler = ContextAssembler()
+    try:
+        ctx = await assembler.assemble(query)
+        return ctx.to_prompt_context()
+    finally:
+        await assembler.close()
+
+
 @mcp.resource("repo://null-realm/index")
 async def repo_index() -> str:
     """REPO_INDEX.md -- architecture summary of null-realm."""
