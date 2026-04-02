@@ -1,4 +1,4 @@
-"""Embedding generation with Vertex AI (production) or sentence-transformers (local dev)."""
+"""Embedding generation via LiteLLM (primary), Vertex AI, or sentence-transformers (fallback)."""
 
 import logging
 import os
@@ -6,60 +6,58 @@ import os
 logger = logging.getLogger(__name__)
 
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))
-_VERTEX_BATCH_SIZE = 250
 
 
-def _use_vertex_ai() -> bool:
-    """Return True if we should use Vertex AI for embeddings."""
-    if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        return True
-    # Detect GKE by checking for the metadata server env var
-    if os.getenv("KUBERNETES_SERVICE_HOST") and os.getenv("GOOGLE_CLOUD_PROJECT"):
-        return True
-    return False
+def _embed_litellm(texts: list[str]) -> list[list[float]]:
+    """Embed via LiteLLM proxy's OpenAI-compatible embedding endpoint."""
+    import httpx
+
+    litellm_url = os.getenv("LITELLM_URL", "http://litellm.null-realm.svc.cluster.local:4000/v1")
+    resp = httpx.post(
+        f"{litellm_url}/embeddings",
+        json={"model": "text-embedding-005", "input": texts},
+        headers={"Authorization": "Bearer not-needed"},
+        timeout=60,
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        return [item["embedding"] for item in data["data"]]
+    raise RuntimeError(f"LiteLLM embedding failed: {resp.status_code} {resp.text}")
 
 
-def _embed_vertex(texts: list[str]) -> list[list[float]]:
-    """Embed via Vertex AI text-embedding-005 (768 dims)."""
-    from vertexai.language_models import TextEmbeddingModel
-
-    model = TextEmbeddingModel.from_pretrained("text-embedding-005")
-    all_embeddings: list[list[float]] = []
-
-    for i in range(0, len(texts), _VERTEX_BATCH_SIZE):
-        batch = texts[i : i + _VERTEX_BATCH_SIZE]
-        embeddings = model.get_embeddings(batch)
-        all_embeddings.extend([e.values for e in embeddings])
-
-    return all_embeddings
+_local_model = None
 
 
 def _embed_local(texts: list[str]) -> list[list[float]]:
-    """Embed via sentence-transformers all-mpnet-base-v2 (768 dims)."""
+    """Embed via sentence-transformers all-mpnet-base-v2 (768 dims).
+    Model is loaded once and cached — avoids re-downloading on every call."""
+    global _local_model
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer("all-mpnet-base-v2")
-    embeddings = model.encode(texts, show_progress_bar=len(texts) > 50)
+    if _local_model is None:
+        logger.info("Loading sentence-transformers model (first call, may take a moment)...")
+        _local_model = SentenceTransformer("all-mpnet-base-v2")
+    embeddings = _local_model.encode(texts, show_progress_bar=len(texts) > 50)
     return embeddings.tolist()
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed a list of texts, auto-selecting backend.
 
-    Returns a list of float vectors, one per input text.
-    Vertex AI is used when GOOGLE_APPLICATION_CREDENTIALS is set or running on GKE;
-    otherwise falls back to sentence-transformers (all-mpnet-base-v2, 768 dims).
+    Priority:
+    1. LiteLLM proxy (if LITELLM_URL is set — no model download needed)
+    2. sentence-transformers (local fallback — needs 500MB model download)
     """
     if not texts:
         return []
 
-    if _use_vertex_ai():
-        logger.info("Using Vertex AI text-embedding-005 for %d texts", len(texts))
+    litellm_url = os.getenv("LITELLM_URL")
+    if litellm_url:
+        logger.info("Using LiteLLM for %d texts", len(texts))
         try:
-            return _embed_vertex(texts)
+            return _embed_litellm(texts)
         except Exception:
-            logger.warning("Vertex AI embedding failed, falling back to sentence-transformers")
-            return _embed_local(texts)
-    else:
-        logger.info("Using sentence-transformers (all-mpnet-base-v2) for %d texts", len(texts))
-        return _embed_local(texts)
+            logger.warning("LiteLLM embedding failed, falling back to sentence-transformers")
+
+    logger.info("Using sentence-transformers (all-mpnet-base-v2) for %d texts", len(texts))
+    return _embed_local(texts)
