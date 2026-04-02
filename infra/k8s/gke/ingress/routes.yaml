@@ -193,3 +193,19 @@ spec:
       services:
         - name: spotlight
           port: 8080
+---
+# MCP Server — Hopocalypse (NO OAuth2 Proxy — handles its own auth)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hopocalypse
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`hopocalypse.34.53.165.155.nip.io`)
+      kind: Rule
+      services:
+        - name: mcp-server
+          port: 8090
