@@ -17,7 +17,7 @@ async def do_code_search(query: str, repo: str = "null-realm", k: int = 10) -> s
     store = PgVectorStore()
     try:
         await store.init()
-        results = await store.search(query, k=k, repo=repo)
+        results = await store.search(query, k=k)
         if not results:
             return "No results found."
         formatted = []

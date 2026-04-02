@@ -22,6 +22,8 @@ spec:
             - containerPort: 8090
           command: ["uv", "run", "python", "-m", "nullrealm.mcp_server", "--port", "8090"]
           env:
+            - name: LITELLM_URL
+              value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
             - name: DATABASE_URL
               value: "postgresql+asyncpg://nullrealm:nullrealm_gke_dev@10.5.0.3:5432/nullrealm"
             - name: NEO4J_URI
