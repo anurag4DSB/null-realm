@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: null-realm
+  labels:
+    app: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+        - name: mcp-server
+          image: europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/mcp:latest
+          ports:
+            - containerPort: 8090
+          command: ["uv", "run", "python", "-m", "nullrealm.mcp_server", "--port", "8090"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
+            - name: NEO4J_URI
+              value: "bolt://neo4j.null-realm.svc.cluster.local:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              value: "REDACTED_PASSWORD"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "YOUR_GCP_PROJECT"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://jaeger.null-realm.svc.cluster.local:4317"
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: GOOGLE_OAUTH_CLIENT_ID
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: GOOGLE_OAUTH_CLIENT_SECRET
+            - name: MCP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: MCP_JWT_SECRET
+            - name: MCP_REDIRECT_URI
+              value: "http://hopocalypse.INGRESS_IP.nip.io/oauth/callback"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            periodSeconds: 10

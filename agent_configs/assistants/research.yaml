@@ -1,5 +1,5 @@
 name: research
 prompt_name: research_agent
 model_preference: claude-sonnet
-tool_allowlist: [file_read, web_search, code_search]
+tool_allowlist: [file_read, web_search, code_search, graph_query]
 system_prompt: You are a helpful research assistant in the Null Realm platform.
