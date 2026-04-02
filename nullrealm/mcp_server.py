@@ -134,12 +134,121 @@ async def context_assemble(query: str) -> str:
         await assembler.close()
 
 
+@mcp.tool()
+async def index_repo(url: str, branch: str = "main", name: str = "") -> str:
+    """Clone a Git repo and index it into the knowledge graph.
+
+    Supports private repos via SSH (git@github.com:org/repo.git).
+    Public repos use HTTPS. Re-indexing is idempotent — old data is replaced.
+    """
+    from nullrealm.context.repo_manager import index_repository
+    try:
+        result = await index_repository(url, branch=branch, repo_name=name)
+        return (
+            f"Indexed '{result['repo_name']}' from {result['url']}:\n"
+            f"  Chunks: {result['chunks']}\n"
+            f"  Relationships: {result['relationships']}\n"
+            f"  Summary: {result['summary_path'] or 'skipped'}"
+        )
+    except Exception as e:
+        return f"Indexing failed: {e}"
+
+
+@mcp.tool()
+async def delete_repo_index(repo_name: str) -> str:
+    """Remove all indexed data for a repository.
+
+    Deletes embeddings from pgvector, nodes from Neo4j, REPO_INDEX.md,
+    and cached clone. Use list_repos first to see available repo names.
+    """
+    from nullrealm.context.repo_manager import delete_repository_index
+    result = await delete_repository_index(repo_name)
+    return (
+        f"Deleted index for '{result['repo_name']}':\n"
+        f"  Chunks removed: {result['chunks_deleted']}\n"
+        f"  Graph nodes removed: {result['nodes_deleted']}"
+    )
+
+
+@mcp.tool()
+async def list_repos() -> str:
+    """List all indexed repositories with chunk counts and file stats."""
+    from nullrealm.context.repo_manager import list_indexed_repos
+    repos = await list_indexed_repos()
+    if not repos:
+        return "No repositories indexed yet. Use index_repo to add one."
+    lines = ["Indexed repositories:\n"]
+    for r in repos:
+        lines.append(
+            f"  {r['repo']}:\n"
+            f"    Chunks: {r['chunks']}, Files: {r['files']}\n"
+            f"    First indexed: {r.get('first_indexed', 'unknown')}"
+        )
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# MCP Resources
+# ---------------------------------------------------------------------------
+
 @mcp.resource("repo://null-realm/index")
 async def repo_index() -> str:
     """REPO_INDEX.md -- architecture summary of null-realm."""
     if REPO_INDEX_PATH.exists():
         return REPO_INDEX_PATH.read_text()
     return "REPO_INDEX.md not found."
+
+
+@mcp.resource("null-realm://services")
+async def service_urls() -> str:
+    """All deployed null-realm service URLs and what they do."""
+    return """# Null Realm Services
+
+## Chat & AI
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Chat (Chainlit) | http://chat.34.53.165.155.nip.io | Chat with Claude via LangGraph agent |
+| MCP Server (Hopocalypse) | http://hopocalypse.34.53.165.155.nip.io/mcp | MCP tools: code_search, graph_query, index_repo, list_repos |
+| API Server | http://api.34.53.165.155.nip.io | REST API: /health, /api/v1/registry/*, /api/v1/workflows/* |
+
+## Observability
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Langfuse | http://34.53.165.155.nip.io | LLM traces (tokens, cost, latency) |
+| Grafana | http://grafana.34.53.165.155.nip.io | Dashboards: K8s, Argo Workflows, Code Knowledge Graph |
+| Jaeger | http://jaeger.34.53.165.155.nip.io | Distributed traces (OpenTelemetry spans) |
+| Argo Workflows | http://argo.34.53.165.155.nip.io | Multi-agent workflow orchestration UI |
+
+## Code Intelligence
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Embedding Explorer | http://embeddings.34.53.165.155.nip.io | 2D/3D scatter + data table + graph review |
+| Embedding Atlas | http://atlas.34.53.165.155.nip.io | Apple's 2D WebGPU embedding visualization |
+| TensorBoard | http://tensorboard.34.53.165.155.nip.io | 3D embedding projector (PCA/t-SNE/UMAP) |
+| Spotlight | http://spotlight.34.53.165.155.nip.io | Renumics dataset quality explorer |
+| Neo4j Browser | http://neo4j.34.53.165.155.nip.io | Knowledge graph (Bolt: neo4j://35.233.44.47:7687) |
+
+## Auth
+All GKE services require Google OAuth (cookie shared across *.34.53.165.155.nip.io).
+MCP server uses its own Google OAuth token flow at /oauth/authorize.
+Local Kind services have no auth.
+"""
+
+
+@mcp.resource("null-realm://repos")
+async def indexed_repos_resource() -> str:
+    """Dynamically lists all indexed repositories with stats."""
+    from nullrealm.context.repo_manager import list_indexed_repos
+    repos = await list_indexed_repos()
+    if not repos:
+        return "No repositories indexed yet. Use the index_repo tool to add one."
+    lines = ["# Indexed Repositories\n"]
+    for r in repos:
+        lines.append(f"## {r['repo']}")
+        lines.append(f"- **Chunks**: {r['chunks']}")
+        lines.append(f"- **Files**: {r['files']}")
+        lines.append(f"- **First indexed**: {r.get('first_indexed', 'unknown')}\n")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
