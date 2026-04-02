@@ -103,3 +103,93 @@ spec:
       services:
         - name: api-server
           port: 8000
+---
+# Neo4j Browser — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: neo4j
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`neo4j.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: neo4j
+          port: 7474
+---
+# Embedding Visualizations — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: embeddings
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`embeddings.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: embedding-viz
+          port: 8502
+---
+# Apple Embedding Atlas — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: atlas
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`atlas.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: atlas
+          port: 8080
+---
+# TensorBoard Embedding Projector — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: projector
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`tensorboard.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: projector
+          port: 8080
+---
+# Renumics Spotlight — subdomain, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: spotlight
+  namespace: null-realm
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`spotlight.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: spotlight
+          port: 8080

@@ -1,0 +1,54 @@
+# Embedding Atlas — Apple's interactive embedding visualization
+# Two-stage build:
+#   1. Export data from pgvector + generate standalone app via embedding-atlas CLI
+#   2. Serve the static app via nginx
+#
+# NOTE: Stage 1 runs at container startup (not build time) because it needs
+# DB access. We use a lightweight entrypoint script instead.
+
+FROM python:3.12-slim AS base
+
+WORKDIR /app
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+RUN pip install --no-cache-dir \
+    embedding-atlas \
+    sqlalchemy[asyncio] \
+    asyncpg \
+    pandas \
+    numpy \
+    pacmap \
+    pyarrow
+
+# Copy the export script
+COPY viz/tools/export_data.py /app/export_data.py
+
+# Copy the entrypoint
+COPY viz/tools/atlas_entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# nginx config to serve the atlas app
+RUN cat > /etc/nginx/sites-available/default <<'NGINX'
+server {
+    listen 8080;
+    server_name _;
+    root /app/atlas-app;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Allow large responses for the embedded data
+    client_max_body_size 50m;
+}
+NGINX
+
+EXPOSE 8080
+
+CMD ["/app/entrypoint.sh"]

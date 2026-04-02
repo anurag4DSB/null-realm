@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projector
+  namespace: null-realm
+  labels:
+    app: projector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: projector
+  template:
+    metadata:
+      labels:
+        app: projector
+    spec:
+      containers:
+        - name: projector
+          image: europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/projector:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://nullrealm:nullrealm_gke_dev@10.5.0.3:5432/nullrealm"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi

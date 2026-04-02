@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedding-viz
+  namespace: null-realm
+  labels:
+    app: embedding-viz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embedding-viz
+  template:
+    metadata:
+      labels:
+        app: embedding-viz
+    spec:
+      containers:
+        - name: embedding-viz
+          image: null-realm-viz:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8502
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm"
+            - name: NEO4J_URI
+              value: "bolt://neo4j.null-realm.svc.cluster.local:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              value: "neo4j-null-realm"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
