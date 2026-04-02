@@ -100,6 +100,30 @@ Data IS in Prometheus (verified via Explore). Dashboard panels just need query u
 
 ---
 
+## Automatic re-indexing on PR merge (future)
+
+Currently indexing is manual (`python -m nullrealm.context.indexer`). Future state: a system that automatically updates the knowledge graph + embeddings when code changes.
+
+**Architecture**:
+```
+GitHub PR merged → Webhook → Cloud Run/K8s Job → 
+  1. git pull changed files
+  2. Re-parse AST for changed files only (incremental)
+  3. Re-embed changed chunks
+  4. Update Neo4j graph edges for changed files
+  5. Re-run PaCMAP on full embedding set
+  6. Update visualizations
+```
+
+**Options**:
+- GitHub webhook → Cloud Run function (serverless, pay-per-invocation)
+- Argo Events → Argo Workflow (already have Argo, native K8s)
+- GitHub Actions → call GKE API (simplest, but requires GitHub-GKE auth)
+
+**When**: Post-v1.0, after Phase 06. The manual pipeline must work well first.
+
+---
+
 ## invoke binary missing
 
 `uv run invoke build` stopped working — the `invoke` binary isn't found in the venv. Direct `docker build` works. Need to debug why `invoke` disappeared from the path.
