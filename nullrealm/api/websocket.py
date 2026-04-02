@@ -32,6 +32,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await _handle_workflow_request(websocket, parsed, session_id)
                 continue
 
+            if msg_type == "context_request":
+                await _handle_context_request(websocket, parsed, session_id)
+                continue
+
             msg = ChatMessage.model_validate_json(data)
             logger.info("Received message for session %s: %s", session_id, msg.content[:50])
 
@@ -236,3 +240,31 @@ async def _stream_agent_response(
         "type": "task_complete",
         "session_id": session_id,
     }))
+
+
+async def _handle_context_request(websocket: WebSocket, parsed: dict, session_id: str):
+    """Handle a context assembly request over WebSocket."""
+    query = parsed.get("content", "")
+    logger.info("Context request: session=%s, query=%s", session_id, query[:80])
+
+    from nullrealm.context.assembler import ContextAssembler
+
+    assembler = ContextAssembler()
+    try:
+        ctx = await assembler.assemble(query)
+        await websocket.send_text(json.dumps({
+            "type": "context_result",
+            "query": query,
+            "results": ctx.to_dict(),
+            "session_id": session_id,
+        }))
+    except Exception:
+        logger.exception("Context assembly failed for session %s", session_id)
+        await websocket.send_text(json.dumps({
+            "type": "context_result",
+            "query": query,
+            "results": {"error": "Context assembly failed"},
+            "session_id": session_id,
+        }))
+    finally:
+        await assembler.close()

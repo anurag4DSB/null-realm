@@ -50,12 +50,15 @@ async def on_message(message: cl.Message):
     session_id = cl.user_session.get("session_id")
     ws = await _ensure_ws(session_id)
 
-    # Check for workflow trigger
+    # Check for slash commands
     if message.content.startswith("/workflow "):
         parts = message.content.split(" ", 2)
         workflow_name = parts[1] if len(parts) > 1 else "feature_development"
         user_input = parts[2] if len(parts) > 2 else ""
         await _handle_workflow(workflow_name, user_input, session_id, ws)
+    elif message.content.startswith("/context "):
+        query = message.content[len("/context "):].strip()
+        await _handle_context(query, session_id, ws)
     else:
         await _handle_chat(message, session_id, ws)
 
@@ -206,4 +209,97 @@ async def _handle_workflow(workflow_name: str, user_input: str, session_id: str,
             break
 
     # Finalize
+    await response_msg.update()
+
+
+async def _handle_context(query: str, session_id: str, ws):
+    """Handle /context command: run context assembler and show results as steps."""
+    msg = {
+        "type": "context_request",
+        "content": query,
+        "session_id": session_id,
+    }
+    await ws.send(json.dumps(msg))
+
+    response_msg = cl.Message(
+        content=f"Assembling context for: **{query}**\n\n"
+    )
+    await response_msg.send()
+
+    try:
+        raw = await asyncio.wait_for(ws.recv(), timeout=30)
+        data = json.loads(raw)
+
+        if data.get("type") != "context_result":
+            await response_msg.stream_token(
+                f"Unexpected response: {data.get('type', 'unknown')}"
+            )
+            await response_msg.update()
+            return
+
+        results = data.get("results", {})
+
+        if "error" in results:
+            await response_msg.stream_token(f"Error: {results['error']}")
+            await response_msg.update()
+            return
+
+        # Step 1: REPO_INDEX summary
+        repo_summary = results.get("repo_summary", "")
+        if repo_summary:
+            step = cl.Step(name="REPO_INDEX", type="tool")
+            step.output = repo_summary
+            await step.send()
+
+        # Step 2: Vector search results
+        vector_results = results.get("vector_results", [])
+        if vector_results:
+            step = cl.Step(name="Vector Search", type="tool")
+            lines = []
+            for r in vector_results:
+                score = r.get("score", 0)
+                fp = r.get("file_path", "?")
+                sym = r.get("symbol_name", "?")
+                stype = r.get("symbol_type", "?")
+                chunk = r.get("chunk_text", "")[:200]
+                lines.append(
+                    f"**[{score:.3f}]** `{fp}:{sym}` ({stype})\n"
+                    f"```\n{chunk}\n```"
+                )
+            step.output = "\n\n".join(lines)
+            await step.send()
+
+        # Step 3: Graph expansion results
+        graph_paths = results.get("graph_paths", [])
+        if graph_paths:
+            step = cl.Step(name="Graph Expansion", type="tool")
+            lines = []
+            for g in graph_paths:
+                lines.append(
+                    f"- `{g.get('file', '?')}:{g.get('name', '?')}` "
+                    f"({g.get('type', '?')}, distance={g.get('distance', '?')})"
+                )
+            step.output = "\n".join(lines)
+            await step.send()
+
+        # Summary line
+        total_tokens = results.get("total_tokens", 0)
+        n_vector = len(vector_results)
+        n_graph = len(graph_paths)
+        has_index = "yes" if repo_summary else "no"
+        await response_msg.stream_token(
+            f"Context assembled: {n_vector} vector results, "
+            f"{n_graph} graph connections, "
+            f"REPO_INDEX: {has_index}, "
+            f"~{total_tokens} tokens"
+        )
+
+    except asyncio.TimeoutError:
+        await response_msg.stream_token("\n\n[Context assembly timed out]")
+    except websockets.exceptions.ConnectionClosed:
+        logger.warning("WebSocket closed during context request")
+    except Exception:
+        logger.exception("Error during context request")
+        await response_msg.stream_token("\n\n[Error during context assembly]")
+
     await response_msg.update()

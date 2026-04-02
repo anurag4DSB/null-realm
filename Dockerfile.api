@@ -17,6 +17,9 @@ COPY nullrealm/ nullrealm/
 # Copy agent config seed data
 COPY agent_configs/ agent_configs/
 
+# Copy repo indexes for context assembler
+COPY repo-indexes/ repo-indexes/
+
 # Install the project itself
 RUN uv sync --frozen --no-dev
 
