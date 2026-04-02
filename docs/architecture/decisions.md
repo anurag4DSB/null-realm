@@ -381,3 +381,53 @@ Plus **Chainlit retrieval transparency**: when an agent uses code_search or grap
 - Embedding viz tools: ~$0.30/day (lightweight Streamlit/static pods)
 - Vertex AI embeddings: ~$0.01 per 1000 chunks indexed (one-time)
 - Total Phase 05 addition: ~$1/day on top of existing ~$5.50/day
+
+---
+
+## ADR-010: Vertex AI embeddings via LiteLLM proxy with Workload Identity
+
+**Date**: 2026-04-02
+**Status**: Accepted
+**Context**: Phase 05 needs Vertex AI `text-embedding-005` embeddings (768-dim) for code indexing. The direct approach -- calling the Vertex AI SDK from app pods -- failed because only the LiteLLM ServiceAccount has the Workload Identity binding for `aiplatform.googleapis.com`.
+
+### What we tried first: direct Vertex AI SDK calls
+
+```python
+from google.cloud import aiplatform
+model = TextEmbeddingModel.from_pretrained("text-embedding-005")
+embeddings = model.get_embeddings(texts)
+```
+
+**Why it failed**:
+- GKE Autopilot with Workload Identity requires each pod's K8s ServiceAccount to be bound to a GCP IAM ServiceAccount
+- Only the `litellm-sa` ServiceAccount has the binding: `litellm-sa` -> `litellm@helpful-rope-230010.iam.gserviceaccount.com` -> `roles/aiplatform.user`
+- Adding Workload Identity bindings to every pod that needs embeddings (indexer, MCP server, API server, worker) would mean 4+ SA bindings to maintain
+- The `google-cloud-aiplatform` SDK also pulls in heavy dependencies (~200MB)
+
+### Decision: route ALL embeddings through LiteLLM /v1/embeddings
+
+```python
+import httpx
+response = httpx.post(f"{LITELLM_URL}/v1/embeddings", json={
+    "model": "vertex_ai/text-embedding-005",
+    "input": texts
+})
+embeddings = [item["embedding"] for item in response.json()["data"]]
+```
+
+**Why it works**:
+- LiteLLM already runs with the correct Workload Identity SA binding -- single auth point
+- No model downloads in app pods (no `sentence-transformers`, no `google-cloud-aiplatform`)
+- Standard OpenAI-compatible `/v1/embeddings` API -- any client can call it
+- LiteLLM handles batching, retries, and rate limiting
+- Same pattern as LLM calls: all model access goes through LiteLLM proxy
+
+### Trade-off
+
+- LiteLLM becomes a single point of failure for embeddings (already true for LLM calls)
+- Extra network hop: app pod -> LiteLLM -> Vertex AI (adds ~10ms latency, negligible for batch indexing)
+- LiteLLM config must include the embedding model in its model list (forgot this initially, caused silent failures)
+
+### Rule
+
+Never call Vertex AI directly from application pods. Route ALL model calls (LLM + embeddings) through LiteLLM. One ServiceAccount, one proxy, one config.

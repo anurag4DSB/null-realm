@@ -103,8 +103,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Repo indexing pipeline (AST parsing + embeddings + REPO_INDEX.md generation)
-- [ ] 05-02: code_search tool + context assembly + cross-repo dependency graph
+- [x] 05-01: Repo indexing pipeline (AST parsing + embeddings + REPO_INDEX.md generation)
+- [x] 05-02: code_search tool + context assembly + cross-repo dependency graph
 
 ### Phase 06: Model Comparison + Eval
 **Goal**: Run same task on Claude vs Gemini, see side-by-side scores in Chainlit, evaluate with golden tests.
@@ -123,5 +123,5 @@ Plans:
 | 02. Chat UI + First Agent | 2/2 | Complete | 2026-04-01 |
 | 03. Streaming + Persistence | 2/2 | Complete | 2026-04-01 |
 | 04. Multi-Agent Workflows | 2/2 | Complete | 2026-04-01 |
-| 05. Context Engineering | 1/2 | In progress | - |
+| 05. Context Engineering | 2/2 | Complete | 2026-04-02 |
 | 06. Model Comparison + Eval | 0/2 | Not started | - |
