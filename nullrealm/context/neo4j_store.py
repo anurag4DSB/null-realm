@@ -44,23 +44,33 @@ class Neo4jStore:
                 "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.repo)"
             )
 
-            # Store in batches
-            for rel in relationships:
+            # Store in batches using UNWIND for performance
+            BATCH_SIZE = 500
+            rel_dicts = [
+                {
+                    "src_file": rel.source_file,
+                    "src_symbol": rel.source_symbol,
+                    "tgt_file": rel.target_file,
+                    "tgt_symbol": rel.target_symbol,
+                    "rel_type": rel.relationship,
+                }
+                for rel in relationships
+            ]
+            for i in range(0, len(rel_dicts), BATCH_SIZE):
+                batch = rel_dicts[i : i + BATCH_SIZE]
                 await session.run(
                     """
-                    MERGE (a:Symbol {file: $src_file, name: $src_symbol, repo: $repo})
-                    MERGE (b:Symbol {file: $tgt_file, name: $tgt_symbol, repo: $repo})
-                    MERGE (a)-[r:RELATES {type: $rel_type}]->(b)
+                    UNWIND $rels AS rel
+                    MERGE (a:Symbol {file: rel.src_file, name: rel.src_symbol, repo: $repo})
+                    MERGE (b:Symbol {file: rel.tgt_file, name: rel.tgt_symbol, repo: $repo})
+                    MERGE (a)-[r:RELATES {type: rel.rel_type}]->(b)
                     SET a.type = COALESCE(a.type, 'unknown'),
                         b.type = COALESCE(b.type, 'unknown')
                     """,
-                    src_file=rel.source_file,
-                    src_symbol=rel.source_symbol,
-                    tgt_file=rel.target_file,
-                    tgt_symbol=rel.target_symbol,
-                    rel_type=rel.relationship,
+                    rels=batch,
                     repo=repo_name,
                 )
+                logger.info("Stored Neo4j batch %d-%d of %d", i, i + len(batch), len(rel_dicts))
 
         # Log counts
         async with self._driver.session() as session:

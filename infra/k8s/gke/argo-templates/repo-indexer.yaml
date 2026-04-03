@@ -26,6 +26,7 @@ spec:
           - name: auth_type
       container:
         image: europe-west1-docker.pkg.dev/helpful-rope-230010/null-realm/worker:latest
+        imagePullPolicy: Always
         command: ["uv", "run", "python", "-m", "nullrealm.context.repo_manager_cli"]
         args:
           - "--url={{inputs.parameters.url}}"
@@ -54,7 +55,7 @@ spec:
         resources:
           requests:
             cpu: 250m
-            memory: 512Mi
+            memory: 1Gi
           limits:
             cpu: "1"
-            memory: 1Gi
+            memory: 2Gi
