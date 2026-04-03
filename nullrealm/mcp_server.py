@@ -344,8 +344,8 @@ async def service_topology() -> str:
         lines = ["Service Topology:\n"]
         for r in results:
             lines.append(
-                f"  {r['source']} --[{r['relationship']}]--> {r['target']}"
-                f"  ({r.get('protocol', '')})"
+                f"  {r['source']} --[{r['rel_type']}]--> {r['target']}"
+                f"  {r.get('props', '') or ''}"
             )
         return "\n".join(lines)
     finally:
