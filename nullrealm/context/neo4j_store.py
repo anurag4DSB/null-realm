@@ -2,6 +2,9 @@
 
 Stores CodeRelationship objects as a property graph and provides
 neighbor, shortest-path, and service-map queries.
+
+Symbol nodes carry a `repo` property for per-repository namespacing
+and fast deletion.
 """
 
 import logging
@@ -22,8 +25,13 @@ class Neo4jStore:
     async def close(self):
         await self._driver.close()
 
-    async def store_graph(self, relationships: list):
-        """Store CodeRelationship objects as graph edges."""
+    async def store_graph(self, relationships: list, repo_name: str = "") -> None:
+        """Store CodeRelationship objects as graph edges.
+
+        Args:
+            relationships: List of CodeRelationship dataclass instances.
+            repo_name: Repository name to tag on every Symbol node.
+        """
         async with self._driver.session() as session:
             # Create indexes for fast lookups
             await session.run(
@@ -32,13 +40,16 @@ class Neo4jStore:
             await session.run(
                 "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.file)"
             )
+            await session.run(
+                "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.repo)"
+            )
 
             # Store in batches
             for rel in relationships:
                 await session.run(
                     """
-                    MERGE (a:Symbol {file: $src_file, name: $src_symbol})
-                    MERGE (b:Symbol {file: $tgt_file, name: $tgt_symbol})
+                    MERGE (a:Symbol {file: $src_file, name: $src_symbol, repo: $repo})
+                    MERGE (b:Symbol {file: $tgt_file, name: $tgt_symbol, repo: $repo})
                     MERGE (a)-[r:RELATES {type: $rel_type}]->(b)
                     SET a.type = COALESCE(a.type, 'unknown'),
                         b.type = COALESCE(b.type, 'unknown')
@@ -48,6 +59,7 @@ class Neo4jStore:
                     tgt_file=rel.target_file,
                     tgt_symbol=rel.target_symbol,
                     rel_type=rel.relationship,
+                    repo=repo_name,
                 )
 
         # Log counts
@@ -61,6 +73,22 @@ class Neo4jStore:
             edge_count = edge_record["cnt"] if edge_record else 0
 
             logger.info("Graph now has %d nodes and %d edges", node_count, edge_count)
+
+    async def delete_by_repo(self, repo_name: str) -> int:
+        """Delete all Symbol nodes (and their relationships) for a given repo.
+
+        Returns:
+            Number of nodes deleted.
+        """
+        async with self._driver.session() as session:
+            result = await session.run(
+                "MATCH (n:Symbol {repo: $repo}) DETACH DELETE n RETURN count(n) as deleted",
+                repo=repo_name,
+            )
+            record = await result.single()
+            deleted = record["deleted"] if record else 0
+            logger.info("Deleted %d Neo4j nodes for repo '%s'", deleted, repo_name)
+            return deleted
 
     async def query_neighbors(self, symbol: str, depth: int = 2) -> list:
         """Find all connected symbols within depth hops."""

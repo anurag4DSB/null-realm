@@ -100,11 +100,13 @@ Plans:
 ### Phase 05: Context Engineering
 **Goal**: Agents understand your repos via AST-parsed code indexes and pgvector semantic search.
 **Depends on**: Phase 04
-**Plans**: 2 plans
+**Plans**: 4 plans
 
 Plans:
 - [x] 05-01: Repo indexing pipeline (AST parsing + embeddings + REPO_INDEX.md generation)
 - [x] 05-02: code_search tool + context assembly + cross-repo dependency graph
+- [x] 05-03: Multi-user repo management (Argo-based indexing, repos table, GitHub PAT auth)
+- [ ] 05-04: Multi-language indexing (JS/TS/Go) via tree-sitter
 
 ### Phase 06: Model Comparison + Eval
 **Goal**: Run same task on Claude vs Gemini, see side-by-side scores in Chainlit, evaluate with golden tests.
@@ -123,5 +125,5 @@ Plans:
 | 02. Chat UI + First Agent | 2/2 | Complete | 2026-04-01 |
 | 03. Streaming + Persistence | 2/2 | Complete | 2026-04-01 |
 | 04. Multi-Agent Workflows | 2/2 | Complete | 2026-04-01 |
-| 05. Context Engineering | 2/2 | Complete | 2026-04-02 |
+| 05. Context Engineering | 3/4 | In progress | 2026-04-03 |
 | 06. Model Comparison + Eval | 0/2 | Not started | - |
