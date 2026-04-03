@@ -91,6 +91,7 @@ async def update_repo_status(
     chunk_count: int | None = None,
     file_count: int | None = None,
     error: str | None = None,
+    dep_map: dict | None = None,
 ) -> None:
     """Update the status (and optional stats) for a repo in the repos table."""
     from nullrealm.registry.models import Repository
@@ -112,6 +113,8 @@ async def update_repo_status(
                 repo.file_count = file_count
             if error is not None:
                 repo.index_error = error
+            if dep_map is not None:
+                repo.dep_map = dep_map
             if status == "ready":
                 repo.last_indexed_at = datetime.now(timezone.utc)
                 repo.index_error = None
@@ -142,6 +145,7 @@ def _repo_to_dict(repo) -> dict:
         "file_count": repo.file_count,
         "last_indexed_at": str(repo.last_indexed_at) if repo.last_indexed_at else None,
         "index_error": repo.index_error,
+        "dep_map": repo.dep_map,
         "created_at": str(repo.created_at) if repo.created_at else None,
         "updated_at": str(repo.updated_at) if repo.updated_at else None,
     }

@@ -16,6 +16,8 @@ spec:
         value: ""
       - name: auth_type
         value: "public"
+      - name: mode
+        value: "code"
   templates:
     - name: index-repo
       inputs:
@@ -24,6 +26,7 @@ spec:
           - name: branch
           - name: repo_name
           - name: auth_type
+          - name: mode
       container:
         image: europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/worker:latest
         imagePullPolicy: Always
@@ -33,6 +36,7 @@ spec:
           - "--branch={{inputs.parameters.branch}}"
           - "--name={{inputs.parameters.repo_name}}"
           - "--auth-type={{inputs.parameters.auth_type}}"
+          - "--mode={{inputs.parameters.mode}}"
         env:
           - name: DATABASE_URL
             value: "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
