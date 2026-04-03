@@ -483,23 +483,40 @@ If you need to add a new node type, relationship type, or property:
 - **Cross-repo**: No XREF edges. Each repo's graph is isolated.
 - **Service topology**: Not modeled. No Service, Endpoint, Topic, or InfraService nodes.
 
-### Target state (Phase 05-05)
+### Current state (as of 2026-04-03)
+
+All 11 code repos indexed. 10,751 chunks across 1,535 files.
+
+| Repo | Chunks | Files |
+|------|--------|-------|
+| Arsenal | 2,314 | 281 |
+| backbeat | 2,026 | 259 |
+| vault (private) | 1,647 | 189 |
+| MetaData (private) | 1,522 | 137 |
+| cloudserver | 1,293 | 396 |
+| scuba (private) | 938 | 118 |
+| utapi | 715 | 98 |
+| bucketclient | 127 | 32 |
+| vaultclient | 82 | 15 |
+| scubaclient | 49 | 6 |
+| sproxydclient | 38 | 4 |
+| **Total** | **10,751** | **1,535** |
+
+Implemented:
+- service_analyzer.py (package.json deps, client library detection, HTTP/Kafka patterns)
+- Neo4j store extensions (Service/Endpoint/Topic/InfraService nodes, XREF edges, updated queries)
+- Pipeline wiring (indexer returns dep_map + service_analysis, CLI stores service graph + XREF)
+- MCP tools: link_repos, service_topology, service_deps
+
+Remaining:
+- Deploy new worker + MCP images to GKE
+- Run link_repos() to create cross-repo XREF edges
+- Federation topology extraction (config template parsing)
+
+### Target state
 
 - **Node types**: Symbol, Service, Endpoint, Topic, InfraService
 - **Relationship types**: All types listed in Section 5
-- **Indexed repos**: All 12 repos (including private via GITHUB_TOKEN)
+- **Indexed repos**: All 11 code repos + Federation (topology only)
 - **Cross-repo**: XREF edges connecting symbols across repos, scoped by package.json
 - **Service topology**: Full topology from Federation config extraction
-
-### Implementation order
-
-| Step | Description | Depends on |
-|------|-------------|------------|
-| 1 | This document + ADR-011 | -- |
-| 2 | `service_analyzer.py` (package.json parser, code pattern detector) | Step 1 |
-| 3 | Neo4j store extensions (new node types, XREF, service queries) | Step 2 |
-| 4 | Wire into indexing pipeline | Steps 2-3 |
-| 5 | New MCP tools (link_repos, service_topology, service_deps) | Steps 3-4 |
-| 6 | Index remaining repos (private + open) | Steps 4-5 |
-| 7 | Federation topology extraction | Step 5 |
-| 8 | Deploy, test, verify | Steps 6-7 |
