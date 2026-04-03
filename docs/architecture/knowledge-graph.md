@@ -511,7 +511,45 @@ Implemented:
 Remaining:
 - Deploy new worker + MCP images to GKE
 - Run link_repos() to create cross-repo XREF edges
-- Federation topology extraction (config template parsing)
+- Federation topology extraction (config template parsing, branch: development/10)
+
+### Federation services -- coverage gaps and next steps
+
+Federation (development/10) deploys 44 roles. The following are NOT fully covered by the 11 indexed code repos:
+
+| Federation Role | What It Is | Action Needed |
+|----------------|-----------|--------------|
+| bucket-notifications | Standalone bucket event notification service. Reads bucketd metadata log, produces to `backbeat-bucket-notification` Kafka topic, routes to destination handlers. Own ZK path `/bucket-notification`, own processor group. | Code is in backbeat extensions (indexed). Federation has **dedicated config** with own Kafka topic, ZK path, queue processor group, destination routing. Index this config for notification architecture context. |
+| s3-frontend | nginx/openresty reverse proxy (TLS termination, domain routing, rate limiting) | Index Federation config templates -- `nginx.conf.j2`, SSL config, upstream routing rules, data-browser config. |
+| s3-analytics-clickhouse | ClickHouse for S3 access log analytics. Log-courier and fluentbit feed logs here. | Index Federation config -- SQL schema templates (CREATE TABLE, MVs, TTL), aggregation rules, retention policies. |
+| s3-analytics-fluentbit | Fluent Bit log shipping from S3 to ClickHouse | Index Federation config -- `fluent-bit.conf.j2`, parser config, output routing, proxy config. |
+| log-courier | Log shipping agent (collects logs from all services) | Index Federation config -- `log-courier.yml.j2`, log sources, destinations, retention. |
+| redis / local-redis | Cache (vault sessions), pub/sub, Sentinel HA | Index Federation config -- `server.conf.j2`, `sentinel.conf.j2`, replication modes, maxmemory policy. |
+| metadata-migration | Raft metadata migration tooling | MetaData repo already indexed. Federation has migration-specific config -- `migration.yml.j2`. |
+| identisee | Console UI / identity management | Separate Scality repo -- index if available. Federation has config with vault/scuba/utapi connections. |
+| osis | Object Storage Interop (VMware) | Java/Spring Boot -- would need Java tree-sitter parser. Federation has `application.properties.j2`. |
+| nfsd | NFS gateway for S3 | Separate image. Federation config defines S3 backend connection. |
+| sproxyd | Object data storage daemon | C++ (not parseable). Federation config (`sproxyd.conf.j2`, `nginx.conf.template.j2`) defines storage layout and proxy. |
+| leef | Audit log to LEEF format converter | Python scripts in Federation -- indexable with current parsers. |
+| sagentd | Scality monitoring agent | Separate image. Federation config (`sagentd.yaml.j2`) defines monitoring targets. |
+| object-repair | Data integrity repair tool | Part of s3utils repo -- index if available. |
+
+**Key insight**: Even for third-party services (ClickHouse, Redis, Fluentbit), Federation's config templates define HOW they're configured in the Scality context -- schemas, routing rules, HA modes, retention policies. That context is valuable for architecture questions like "how do S3 analytics work?" or "what happens to logs?".
+
+### Adding new repos or services
+
+To add a new code repo:
+```
+1. index_repo("https://github.com/scality/NEW_REPO", branch="...", auth_type="token")
+2. link_repos()   # re-runs cross-repo XREF linking for ALL repos
+```
+
+To add Federation config context (future -- requires Jinja2/YAML parser):
+```
+1. Parse roles/run-*/templates/*.j2 for service configuration
+2. Extract connection params, schemas, routing rules
+3. Store as context chunks in pgvector (searchable) + Service node properties in Neo4j
+```
 
 ### Target state
 
