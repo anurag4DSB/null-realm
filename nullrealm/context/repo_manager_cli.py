@@ -7,6 +7,7 @@ Updates the repos table with status/stats as indexing progresses.
 import argparse
 import asyncio
 import logging
+import os
 
 from nullrealm.context.repo_manager import index_repository, update_repo_status
 
@@ -39,6 +40,29 @@ async def main():
             repo_name=args.name,
             auth_type=args.auth_type,
         )
+
+        # Store service graph and create cross-repo links in Neo4j
+        neo4j_uri = os.getenv("NEO4J_URI")
+        if neo4j_uri and result.get("service_analysis"):
+            try:
+                from nullrealm.context.neo4j_store import Neo4jStore
+                neo4j = Neo4jStore()
+
+                # Store service-level topology
+                analysis = result["service_analysis"]
+                svc_stats = await neo4j.store_service_graph(analysis)
+                logger.info("Service graph: %s", svc_stats)
+
+                # Create cross-repo XREF links
+                dep_map = result.get("dep_map", {})
+                if dep_map:
+                    xref_count = await neo4j.link_cross_repo(args.name, dep_map)
+                    logger.info("Cross-repo links: %d XREF edges created", xref_count)
+
+                await neo4j.close()
+            except Exception:
+                logger.warning("Service graph/XREF linking failed", exc_info=True)
+
         await update_repo_status(
             args.name,
             "ready",
