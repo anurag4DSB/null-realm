@@ -77,3 +77,4 @@ class Repository(Base):
     file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     index_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dep_map: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {pkg_name: github_repo_name}

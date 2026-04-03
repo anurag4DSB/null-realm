@@ -217,85 +217,32 @@ async def index_federation_repo(
     Indexes config templates (Jinja2, SQL, nginx), architecture documentation,
     tooling playbooks, and group_vars. Creates service topology edges from
     config template analysis. Requires GITHUB_TOKEN for private repo access.
-
-    Unlike index_repo (which uses Argo), this runs in-process because
-    Federation indexing is lightweight (text chunking, no AST parsing).
     """
-    from pathlib import Path
-    from nullrealm.context.repo_manager import clone_or_pull, register_repo, update_repo_status
-    from nullrealm.context.service_analyzer import index_federation
-    from nullrealm.context.embeddings import embed_texts
-    from nullrealm.context.pgvector_store import PgVectorStore
-    from nullrealm.context.neo4j_store import Neo4jStore
-    import os
+    from nullrealm.context.repo_manager import register_repo, update_repo_status
+    from nullrealm.orchestrator.argo_client import ArgoClient
 
     repo_name = "Federation"
     try:
         await register_repo(repo_name, url, branch=branch, auth_type=auth_type)
-        await update_repo_status(repo_name, "indexing")
-
-        # Clone
-        repo_dir = await clone_or_pull(url, branch, repo_name, auth_type=auth_type)
-
-        # Index Federation content
-        chunks, connections = index_federation(Path(repo_dir))
-
-        if not chunks:
-            await update_repo_status(repo_name, "failed", error="No content found")
-            return "No content found in Federation."
-
-        # Embed and store in pgvector
-        texts = [c.text for c in chunks]
-        embeddings = embed_texts(texts)
-
-        store = PgVectorStore()
-        await store.init()
-        await store.store_embeddings(chunks, embeddings, repo_name=repo_name)
-        await store.close()
-
-        # Store service topology in Neo4j
-        neo4j_uri = os.getenv("NEO4J_URI")
-        if neo4j_uri and connections:
-            neo4j = Neo4jStore()
-            # Create a minimal ServiceAnalysis-like object for store_service_graph
-            from nullrealm.context.service_analyzer import ServiceAnalysis
-            analysis = ServiceAnalysis(
-                repo_name=repo_name,
-                dep_map={},
-                connections=connections,
-                endpoints=[],
-                topics=[],
-            )
-            await neo4j.store_service_graph(analysis)
-            await neo4j.close()
-
-        # Count by type
-        config_count = sum(1 for c in chunks if c.symbol_type == "config")
-        doc_count = sum(1 for c in chunks if c.symbol_type == "documentation")
-        playbook_count = sum(1 for c in chunks if c.symbol_type == "playbook")
-        other_count = len(chunks) - config_count - doc_count - playbook_count
-
-        await update_repo_status(
-            repo_name, "ready",
-            chunk_count=len(chunks),
-            file_count=len(set(c.file_path for c in chunks)),
-        )
-
+        argo = ArgoClient()
+        workflow_name = await argo.submit_workflow("repo-indexer", {
+            "url": url,
+            "branch": branch,
+            "repo_name": repo_name,
+            "auth_type": auth_type,
+            "mode": "federation",
+        })
         return (
-            f"Indexed Federation ({branch}):\n"
-            f"  Config templates: {config_count} chunks\n"
-            f"  Documentation: {doc_count} chunks\n"
-            f"  Tooling playbooks: {playbook_count} chunks\n"
-            f"  Other (Python tools): {other_count} chunks\n"
-            f"  Service topology: {len(connections)} connections\n"
-            f"  Total: {len(chunks)} chunks embedded"
+            f"Indexing Federation ({branch}) started (workflow: {workflow_name}).\n"
+            f"Use list_repos to check status.\n\n"
+            f"{SUPPORTED_LANGUAGES}"
         )
     except Exception as e:
         try:
-            await update_repo_status(repo_name, "failed", error=str(e))
+            await update_repo_status(repo_name, "failed", error=f"Argo submission failed: {e}")
         except Exception:
             pass
-        return f"Federation indexing failed: {e}"
+        return f"Failed to start Federation indexing: {e}"
 
 
 @mcp.tool()
@@ -347,10 +294,7 @@ async def link_repos() -> str:
 
     Run this after indexing multiple repos to connect them in the knowledge graph.
     """
-    from pathlib import Path
-
-    from nullrealm.context.repo_manager import list_indexed_repos, CACHE_DIR
-    from nullrealm.context.service_analyzer import parse_package_json
+    from nullrealm.context.repo_manager import list_indexed_repos
     from nullrealm.context.neo4j_store import Neo4jStore
 
     repos = await list_indexed_repos()
@@ -366,12 +310,7 @@ async def link_repos() -> str:
             if repo["status"] != "ready":
                 continue
             repo_name = repo["name"]
-            clone_dir = Path(CACHE_DIR) / repo_name
-            if not clone_dir.exists():
-                summary_lines.append(f"  {repo_name}: skipped (no cached clone)")
-                continue
-
-            dep_map = parse_package_json(clone_dir)
+            dep_map = repo.get("dep_map") or {}
             if dep_map:
                 xref_count = await neo4j.link_cross_repo(repo_name, dep_map)
                 total_xrefs += xref_count

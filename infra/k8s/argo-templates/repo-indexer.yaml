@@ -16,6 +16,8 @@ spec:
         value: ""
       - name: auth_type
         value: "public"
+      - name: mode
+        value: "code"
   templates:
     - name: index-repo
       inputs:
@@ -24,6 +26,7 @@ spec:
           - name: branch
           - name: repo_name
           - name: auth_type
+          - name: mode
       container:
         image: null-realm-worker:latest
         imagePullPolicy: Never
@@ -33,6 +36,7 @@ spec:
           - "--branch={{inputs.parameters.branch}}"
           - "--name={{inputs.parameters.repo_name}}"
           - "--auth-type={{inputs.parameters.auth_type}}"
+          - "--mode={{inputs.parameters.mode}}"
         env:
           - name: DATABASE_URL
             value: "postgresql+asyncpg://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm"

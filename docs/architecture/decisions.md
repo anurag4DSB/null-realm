@@ -519,3 +519,56 @@ These connect via service-level edges (DEPENDS_ON, HTTP_CALLS, USES_CLIENT, EXPO
 ### Full data model
 
 See `docs/architecture/knowledge-graph.md` for the complete specification: all node types, relationship types, properties, example queries, and the step-by-step resolution algorithm.
+
+---
+
+## ADR-012: MCP Server as Query Layer, Argo as Compute Layer
+
+**Date**: 2026-04-03
+
+**Status**: Accepted
+
+**Context**:
+The MCP server exposes tools (index_repo, link_repos, code_search, service_topology, etc.) to Claude Code and other MCP clients. When we added cross-repo linking (link_repos) and Federation config indexing (index_federation_repo), both were initially implemented to run in-process on the MCP server pod. This failed because:
+
+1. link_repos tried to read package.json from local filesystem clones — but clones only exist on ephemeral Argo worker pods
+2. index_federation_repo tried to run git clone — but the MCP Docker image (Dockerfile.mcp) intentionally has no git installed
+
+**Decision**:
+Enforce a strict separation:
+
+- **MCP server** = query + orchestrate (thin layer)
+  - Queries pgvector (code_search, context_assemble)
+  - Queries Neo4j (graph_query, graph_path, service_topology, service_deps)
+  - Reads repos table (list_repos, link_repos reads dep_map from DB)
+  - Submits Argo workflows (index_repo, index_federation_repo)
+  - Never clones repos, never reads the filesystem, never runs parsers or embeddings
+
+- **Argo worker pods** = clone + parse + embed + store (thick layer)
+  - Clone repos (git with GITHUB_TOKEN for private repos)
+  - Parse code (tree-sitter for JS/TS/Go, ast for Python)
+  - Parse configs (Federation mode: text chunking)
+  - Generate embeddings (Vertex AI via LiteLLM)
+  - Store in pgvector + Neo4j
+  - Persist dep_map to repos table for cross-repo linking
+  - Create XREF edges after indexing
+
+- **Database** = shared state
+  - PostgreSQL repos table: metadata + dep_map (JSONB)
+  - pgvector: code embeddings
+  - Neo4j: symbol graph + service topology
+
+All repo data that the MCP server needs is persisted in the database during Argo indexing. The MCP server never needs filesystem access to answer queries.
+
+**Indexing modes** are controlled by a `--mode` flag on the Argo worker CLI:
+- `code` (default): tree-sitter AST parsing for JS/TS/Go/Python
+- `federation`: text chunking for config templates, docs, playbooks
+- Future: `java`, `rust`, `docs-only` — add new modes as parsers are built
+
+**Trade-offs**:
+- (+) MCP image stays small (~200MB) — fast startup, low memory
+- (+) Argo pods are ephemeral — no state accumulation, clean per-job
+- (+) dep_map in DB means link_repos works without any filesystem access
+- (+) --mode flag is extensible for future indexing types
+- (-) Federation indexing has Argo pod startup latency (~60s on GKE Autopilot)
+- (-) dep_map must be re-persisted on every re-index (minor overhead)
