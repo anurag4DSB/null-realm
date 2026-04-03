@@ -155,4 +155,19 @@ Then `Dockerfile.api` installs only `uv sync --extra api`, not everything.
 
 ---
 
+## JS/TS graph quality: orphan CALLS nodes
+
+The JS/TS tree-sitter parsers extract CALLS relationships for every `call_expression`, but many targets are method calls on objects (`log.debug`, `async.waterfall`, `process.nextTick`) where the target file is unknown. This creates Neo4j Symbol nodes with empty file paths and `type: "unknown"`.
+
+**Impact**: Graph queries return noisy results (`:debug (unknown)`, `:waterfall (unknown)` alongside real symbols). The code_search (pgvector) path is unaffected.
+
+**Fixes** (pick one or combine):
+1. **Resolve imports → files**: When the parser sees `const async = require('async')` and later `async.waterfall()`, link the CALLS edge to the import target instead of an orphan node
+2. **Filter built-in/stdlib calls**: Skip `console.*`, `process.*`, `JSON.*`, `Math.*`, `Object.*`, `Array.*`, `Promise.*` etc.
+3. **Post-process**: Only keep CALLS edges where the target symbol exists as a defined symbol in the same repo (i.e., has a file path)
+
+**When**: After Phase 06. Doesn't block functionality — graph_query works, just noisy.
+
+---
+
 > Add new items here as they come up. Move to `docs/architecture/decisions.md` once a decision is made.
