@@ -124,16 +124,37 @@ Arsenal appears in every service's dependency list. werelogs (structured logging
 
 ```
 :Symbol
-  -- A code-level symbol: function, class, method, module.
+  -- A code-level symbol: function, class, method, module, config template, doc, or playbook.
   -- Properties:
        file     : str   -- Relative file path within the repo (e.g., "lib/api/objectPut.js")
        name     : str   -- Symbol name (e.g., "objectPut", "MetadataWrapper.putObjectMD")
        repo     : str   -- Repository name (e.g., "cloudserver")
-       type     : str   -- "function", "class", "module", "method"
-       language : str   -- "javascript", "python", "go", "typescript"
+       type     : str   -- "function", "class", "module", "method", "config", "documentation", "playbook"
+       language : str   -- "javascript", "python", "go", "typescript", "jinja2", "sql", "nginx", "yaml", "json", "markdown"
+  -- symbol_type values:
+       function      -- Code function or method (existing)
+       class         -- Code class definition (existing)
+       module        -- Code module/file-level symbol (existing)
+       config        -- Jinja2/JSON/SQL/nginx config templates from Federation
+       documentation -- Architecture docs (.md files)
+       playbook      -- Ansible tooling playbooks (.yml files)
+  -- language values:
+       javascript    -- JS source files (existing)
+       python        -- Python source files (existing)
+       go            -- Go source files (existing)
+       typescript    -- TS source files (existing)
+       jinja2        -- Jinja2 templates (default for .j2 files)
+       sql           -- SQL schema templates (*.sql.j2)
+       nginx         -- nginx config templates
+       yaml          -- YAML configs and playbooks
+       json          -- JSON config templates (*.json.j2)
+       markdown      -- Documentation files
   -- Examples:
        {file: "lib/api/objectPut.js", name: "objectPut", repo: "cloudserver", type: "function", language: "javascript"}
        {file: "lib/metadata/MetadataWrapper.js", name: "MetadataWrapper", repo: "Arsenal", type: "class", language: "javascript"}
+       {file: "roles/run-s3/templates/config.json.j2", name: "s3-config", repo: "Federation", type: "config", language: "jinja2"}
+       {file: "documentation/Architecture.md", name: "architecture-overview", repo: "Federation", type: "documentation", language: "markdown"}
+       {file: "tooling-playbooks/upgrade.yml", name: "upgrade-playbook", repo: "Federation", type: "playbook", language: "yaml"}
 
 :Service
   -- A deployable microservice or library.
@@ -241,6 +262,20 @@ Arsenal appears in every service's dependency list. werelogs (structured logging
   Example   : (objectPut {repo: "cloudserver"})-[:XREF {type: "CALLS", package: "arsenal"}]->(MetadataWrapper.putObjectMD {repo: "Arsenal"})
 
 
+--- Federation relationships ---
+
+:CONFIGURED_BY
+  Direction : Service --> Symbol {type: "config"}
+  Meaning   : Links a service to its Federation config template
+  Example   : (cloudserver:Service)-[:CONFIGURED_BY]->({file: "roles/run-s3/templates/config.json.j2", type: "config", repo: "Federation"})
+
+:BUILT_FROM
+  Direction : Service --> Service
+  Meaning   : Maps a Docker image to the service repo it's built from
+  Properties: {image: str}
+  Example   : (cloudserver:Service)-[:BUILT_FROM {image: "scality/s3"}]->(cloudserver:Service)
+
+
 --- Linking relationships ---
 
 :BELONGS_TO
@@ -263,6 +298,9 @@ Arsenal appears in every service's dependency list. werelogs (structured logging
                 ├──:PRODUCES─────> :Topic
                 ├──:CONSUMES─────> :Topic
                 └──:USES_INFRA───> :InfraService
+
+              :Service ──:CONFIGURED_BY──> :Symbol {type: "config"}
+              :Service ──:BUILT_FROM────> :Service  (Docker image origin)
 
               :Symbol ──:RELATES──> :Symbol  (intra-repo)
               :Symbol ──:XREF────> :Symbol   (cross-repo)
@@ -550,6 +588,84 @@ To add Federation config context (future -- requires Jinja2/YAML parser):
 2. Extract connection params, schemas, routing rules
 3. Store as context chunks in pgvector (searchable) + Service node properties in Neo4j
 ```
+
+### Federation role → service name mapping
+
+Federation deploys services by role name. This table maps each Federation role to the Scality service / code repo it corresponds to.
+
+```
+Federation Role                  → Service / Repo
+─────────────────────────────────────────────────────────────────
+s3                               → cloudserver
+backbeat                         → backbeat
+vault                            → vault
+metadata / bucketd / dbd         → MetaData
+utapi                            → utapi
+scuba                            → scuba
+bucket-notifications             → backbeat (same codebase)
+s3-frontend                      → s3-frontend (nginx, no code repo)
+s3-analytics-clickhouse          → clickhouse (third-party + Scality config)
+s3-analytics-fluentbit           → fluentbit (third-party + Scality config)
+log-courier                      → log-courier
+redis / local-redis              → redis (third-party + Scality config)
+sproxyd                          → sproxyd (C++, config only)
+identisee                        → identisee
+nfsd                             → nfsd
+osis                             → osis (Java)
+sagentd                          → sagentd
+```
+
+### Docker image → repo mapping
+
+Derived from Federation's `group_vars/all`. Used to create `BUILT_FROM` edges.
+
+```
+Docker Image                     → Code Repo
+─────────────────────────────────────────────────────────────────
+scality/s3, scality/cloudserver  → cloudserver
+scality/backbeat                 → backbeat
+scality/vault, scality/vault-md  → Vault
+scality/metadata                 → MetaData
+scality/utapi                    → utapi
+scality/scuba                    → scuba
+scality/identisee                → identisee
+scality/osis                     → osis
+```
+
+### Supported indexing languages
+
+What the indexer can parse, by content type.
+
+```
+Code:
+  Python (.py)                   — AST parser
+  JavaScript (.js/.jsx)          — tree-sitter
+  TypeScript (.ts/.tsx)          — tree-sitter
+  Go (.go)                       — tree-sitter
+
+Config (Federation):
+  Jinja2 (.j2)                   — template-aware chunker
+  SQL (.sql.j2)                  — template-aware chunker
+  nginx (nginx.conf.j2)          — template-aware chunker
+  YAML (.yml, .yaml)             — YAML-aware chunker
+  JSON (.json.j2)                — template-aware chunker
+
+Docs (Federation):
+  Markdown (.md)                 — heading-based splitter
+  YAML playbooks (.yml)          — one chunk per file
+```
+
+### Federation chunking strategy
+
+How Federation content is split into indexable chunks.
+
+| Content Path | Strategy | Notes |
+|---|---|---|
+| `roles/run-*/templates/*.j2` | One chunk per file | Files >200 lines split by section boundaries (blank-line-delimited blocks) |
+| `group_vars/all` | Split by `defaults.X:` blocks | One chunk per service section (e.g., `defaults.s3:`, `defaults.backbeat:`) |
+| `documentation/*.md` | Split by `##` headers | Each second-level heading becomes a chunk |
+| `tooling-playbooks/*.yml` | One chunk per playbook file | Entire playbook as a single chunk |
+| `tools/**/*.py` | Python AST parser | Uses existing Python parser (same as code repos) |
 
 ### Target state
 

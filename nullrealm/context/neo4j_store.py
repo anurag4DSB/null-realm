@@ -197,6 +197,33 @@ class Neo4jStore:
                         )
                         counts["infra"] += len(infra_batch)
 
+                    # CONFIGURED_BY (Federation config → Service)
+                    config_batch = [c for c in batch if c["rel_type"] == "CONFIGURED_BY"]
+                    if config_batch:
+                        await session.run(
+                            """
+                            UNWIND $conns AS c
+                            MATCH (a:Service {name: c.source})
+                            MERGE (cfg:Symbol {file: c.path, name: c.target, repo: "Federation"})
+                            SET cfg.type = "config"
+                            MERGE (a)-[:CONFIGURED_BY {file: c.path}]->(cfg)
+                            """,
+                            conns=config_batch,
+                        )
+
+                    # BUILT_FROM (Docker image → Service/Repo)
+                    built_batch = [c for c in batch if c["rel_type"] == "BUILT_FROM"]
+                    if built_batch:
+                        await session.run(
+                            """
+                            UNWIND $conns AS c
+                            MATCH (a:Service {name: c.source})
+                            MERGE (b:Service {name: c.target})
+                            MERGE (a)-[:BUILT_FROM {image: c.via}]->(b)
+                            """,
+                            conns=built_batch,
+                        )
+
                 counts["services"] += len({c["source"] for c in conn_dicts} | {c["target"] for c in conn_dicts})
                 counts["connections"] += len(conn_dicts)
 
@@ -350,7 +377,8 @@ class Neo4jStore:
                 MATCH (a:Service)-[r]->(b)
                 WHERE type(r) IN [
                     'DEPENDS_ON', 'HTTP_CALLS', 'USES_CLIENT',
-                    'EXPOSES', 'PRODUCES', 'CONSUMES', 'USES_INFRA'
+                    'EXPOSES', 'PRODUCES', 'CONSUMES', 'USES_INFRA',
+                    'CONFIGURED_BY', 'BUILT_FROM'
                 ]
                 RETURN a.name AS source, type(r) AS rel_type,
                        CASE
@@ -358,6 +386,7 @@ class Neo4jStore:
                            WHEN b:Endpoint THEN b.path
                            WHEN b:Topic THEN b.name
                            WHEN b:InfraService THEN b.name
+                           WHEN b:Symbol THEN b.name
                        END AS target,
                        properties(r) AS props
                 ORDER BY a.name, type(r)
@@ -377,7 +406,8 @@ class Neo4jStore:
                 MATCH (s:Service {name: $name})-[r]->(target)
                 WHERE type(r) IN [
                     'DEPENDS_ON', 'HTTP_CALLS', 'USES_CLIENT',
-                    'EXPOSES', 'PRODUCES', 'CONSUMES', 'USES_INFRA'
+                    'EXPOSES', 'PRODUCES', 'CONSUMES', 'USES_INFRA',
+                    'CONFIGURED_BY', 'BUILT_FROM'
                 ]
                 RETURN type(r) AS rel_type,
                        CASE
@@ -385,6 +415,7 @@ class Neo4jStore:
                            WHEN target:Endpoint THEN target.path
                            WHEN target:Topic THEN target.name
                            WHEN target:InfraService THEN target.name
+                           WHEN target:Symbol THEN target.name
                        END AS target,
                        labels(target) AS target_labels,
                        properties(r) AS props
