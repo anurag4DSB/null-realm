@@ -344,7 +344,7 @@ class Neo4jStore:
                     WITH caller, orphan
                     MATCH (target:Symbol {repo: $dep_repo})
                     WHERE target.file <> ""
-                      AND (target.name = orphan.name OR target.name ENDS WITH ("." + orphan.name))
+                      AND (target.name = orphan.name OR target.name CONTAINS ("." + orphan.name))
                     MERGE (caller)-[:XREF {type: "CALLS", package: $dep_name}]->(target)
                     RETURN count(*) AS created
                     """,
