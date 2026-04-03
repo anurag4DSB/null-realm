@@ -513,43 +513,34 @@ If you need to add a new node type, relationship type, or property:
 
 ## 11. Current State vs. Target State
 
-### Current state (Phase 05 complete)
-
-- **Node types**: Symbol only
-- **Relationship types**: RELATES (with type property: CALLS, IMPORTS, INHERITS, CONTAINS)
-- **Indexed repos**: null-realm (self), cloudserver, Arsenal, backbeat
-- **Cross-repo**: No XREF edges. Each repo's graph is isolated.
-- **Service topology**: Not modeled. No Service, Endpoint, Topic, or InfraService nodes.
-
 ### Current state (as of 2026-04-03)
 
-All 11 code repos indexed. 10,751 chunks across 1,535 files.
+All 12 repos indexed (11 code + 1 Federation config). 10,937 chunks across 1,679 files.
 
-| Repo | Chunks | Files |
-|------|--------|-------|
-| Arsenal | 2,314 | 281 |
-| backbeat | 2,026 | 259 |
-| vault (private) | 1,647 | 189 |
-| MetaData (private) | 1,522 | 137 |
-| cloudserver | 1,293 | 396 |
-| scuba (private) | 938 | 118 |
-| utapi | 715 | 98 |
-| bucketclient | 127 | 32 |
-| vaultclient | 82 | 15 |
-| scubaclient | 49 | 6 |
-| sproxydclient | 38 | 4 |
-| **Total** | **10,751** | **1,535** |
+| Repo | Chunks | Files | Type |
+|------|--------|-------|------|
+| Arsenal | 2,314 | 281 | Code (JS/TS) |
+| backbeat | 2,026 | 259 | Code (JS) |
+| vault (private) | 1,647 | 189 | Code (JS) |
+| MetaData (private) | 1,522 | 137 | Code (JS) |
+| cloudserver | 1,293 | 396 | Code (JS/Python/Go) |
+| scuba (private) | 938 | 118 | Code (JS) |
+| utapi | 715 | 98 | Code (JS) |
+| Federation (private) | 186 | 144 | Config (Jinja2/SQL/nginx/YAML/Markdown) |
+| bucketclient | 127 | 32 | Code (JS) |
+| vaultclient | 82 | 15 | Code (JS) |
+| scubaclient | 49 | 6 | Code (JS) |
+| sproxydclient | 38 | 4 | Code (JS) |
+| **Total** | **10,937** | **1,679** | |
 
 Implemented:
-- service_analyzer.py (package.json deps, client library detection, HTTP/Kafka patterns)
-- Neo4j store extensions (Service/Endpoint/Topic/InfraService nodes, XREF edges, updated queries)
-- Pipeline wiring (indexer returns dep_map + service_analysis, CLI stores service graph + XREF)
-- MCP tools: link_repos, service_topology, service_deps
-
-Remaining:
-- Deploy new worker + MCP images to GKE
-- Run link_repos() to create cross-repo XREF edges
-- Federation topology extraction (config template parsing, branch: development/10)
+- Multi-language indexing: Python (ast), JavaScript/JSX, TypeScript/TSX, Go (tree-sitter)
+- Federation config-as-context: Jinja2 templates, group_vars, docs, playbooks (text chunking)
+- service_analyzer.py: package.json deps, client library detection, HTTP/Kafka patterns
+- Neo4j store: Service/Endpoint/Topic/InfraService nodes, XREF edges, CONFIGURED_BY, BUILT_FROM
+- Pipeline: dep_map persisted in repos table, --mode flag (code/federation), ADR-012 MCP/Argo split
+- MCP tools: link_repos, service_topology, service_deps, index_federation_repo
+- Embedding batching (batch size 5 for Vertex AI), Neo4j UNWIND batching (500 rels/query)
 
 ### Federation services -- coverage gaps and next steps
 
