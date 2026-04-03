@@ -36,14 +36,16 @@ class Neo4jStore:
         """
         async with self._driver.session() as session:
             # Create indexes for fast lookups
+            # TEXT indexes for name/file — required for CONTAINS/ENDS WITH in cross-repo XREF queries
+            # RANGE indexes for repo — used for exact match lookups and delete_by_repo
             await session.run(
-                "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.name)"
+                "CREATE TEXT INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.name)"
             )
             await session.run(
-                "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.file)"
+                "CREATE TEXT INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.file)"
             )
             await session.run(
-                "CREATE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.repo)"
+                "CREATE RANGE INDEX IF NOT EXISTS FOR (s:Symbol) ON (s.repo)"
             )
 
             # Store in batches using UNWIND for performance
