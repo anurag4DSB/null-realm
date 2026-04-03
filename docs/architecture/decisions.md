@@ -431,3 +431,144 @@ embeddings = [item["embedding"] for item in response.json()["data"]]
 ### Rule
 
 Never call Vertex AI directly from application pods. Route ALL model calls (LLM + embeddings) through LiteLLM. One ServiceAccount, one proxy, one config.
+
+---
+
+## ADR-011: Multi-repo knowledge graph with layered cross-repo resolution
+
+**Date**: 2026-04-03
+**Status**: Accepted
+**Context**: The Scality S3 platform spans many repositories that interact via npm dependencies, HTTP APIs, Kafka events, and shared libraries. Phase 05 indexed three repos (cloudserver, Arsenal, backbeat) but the Neo4j graph is isolated per repo -- you cannot trace a request from cloudserver's `objectPut` through Arsenal's `MetadataWrapper` to bucketd's storage layer. Single-repo graphs answer "what does this function call?" but not "what happens when a PUT object request crosses service boundaries?"
+
+### Problem with isolated per-repo graphs
+
+Each repo's graph is a disconnected island:
+
+```
+cloudserver graph:  objectPut --CALLS--> MetadataWrapper  (unresolved, target_file="")
+Arsenal graph:      MetadataWrapper --CONTAINS--> putObjectMD
+```
+
+The CALLS edge from cloudserver to `MetadataWrapper` points to nothing because `MetadataWrapper` is defined in Arsenal, not cloudserver. There is no edge connecting the two repos. This means:
+
+- `graph_query("objectPut", depth=3)` only returns cloudserver symbols, never reaches Arsenal
+- `graph_path("objectPut", "MetadataWrapper.putObjectMD")` returns "no path found"
+- `service_map()` only shows intra-repo file connections, not service-to-service topology
+- The agent cannot answer "how does authentication work end-to-end?" because the IAM service's code is in a different graph island
+
+### Decision: Four-layer cross-repo resolution
+
+Connect repos using four resolution layers, ordered by confidence:
+
+1. **package.json resolution** (highest confidence): Parse npm dependencies to build a dependency map. If cloudserver depends on arsenal, create a `DEPENDS_ON` edge between their Service nodes and scope all symbol matching to known dependencies.
+
+2. **Symbol name matching** (scoped): For unresolved CALLS targets, search dependency repos' symbols for name matches. Only search repos that are confirmed dependencies from layer 1. This prevents false positives from generic names.
+
+3. **Deployment config extraction**: Parse Ansible deployment-repo templates for authoritative service topology -- who talks to whom, on what ports, with what configuration. This is the ground truth for runtime communication.
+
+4. **Code pattern detection** (lowest confidence): Detect known library usage patterns (`require('vaultclient') + new Client()`, `new BackbeatProducer()`, etc.) to create USES_CLIENT, PRODUCES, CONSUMES edges.
+
+### Why layered resolution over a single strategy
+
+No single strategy works for all relationship types:
+
+- **package.json** knows library dependencies but not runtime communication
+- **Code analysis** knows what code calls what but can't distinguish production code from tests or dead code
+- **Deployment config** knows runtime topology but not code-level symbol connections
+- **Pattern detection** catches client library usage but misses indirect calls
+
+The layers complement each other. package.json scopes the search space, code analysis finds symbol-level connections within that scope, deployment config confirms runtime topology, and pattern detection fills gaps.
+
+### Why XREF as a separate edge type (not reusing RELATES)
+
+RELATES edges are intra-repo: both endpoints share the same `repo` property. XREF edges are cross-repo: source and target are in different repos. Keeping them separate allows:
+
+- Filtering: `MATCH (a)-[:RELATES]-(b)` for intra-repo only, `[:XREF]` for cross-repo only
+- Confidence tracking: XREF edges carry a `package` property indicating which dependency they were resolved through
+- Rebuild: `link_repos()` can delete and recreate all XREF edges without touching intra-repo RELATES edges
+
+### Why post-indexing cross-linking (not inline during index)
+
+Cross-repo edges require both repos to be indexed. If you index cloudserver first, Arsenal's symbols don't exist yet -- you can't create XREF edges. Running `link_repos()` as a separate step after all repos are indexed means:
+
+- Repos can be indexed in any order, independently, in parallel
+- Re-indexing one repo doesn't invalidate other repos' internal graphs
+- The cross-linking pass has access to all repos' symbols simultaneously
+- Idempotent: `link_repos()` can be re-run safely after adding new repos
+
+### New node types beyond Symbol
+
+The graph expands from code-level only (Symbol) to include service-level topology:
+
+| Node Type | Purpose |
+|-----------|---------|
+| Service | Deployable microservice (cloudserver, backbeat, bucketd, etc.) |
+| Endpoint | HTTP API route a service exposes |
+| Topic | Kafka topic for async communication |
+| InfraService | Infrastructure dependency (redis, kafka, zookeeper) |
+
+These connect via service-level edges (DEPENDS_ON, HTTP_CALLS, USES_CLIENT, EXPOSES, PRODUCES, CONSUMES, USES_INFRA) and link to code via BELONGS_TO (Symbol to Service).
+
+### Trade-offs
+
+- **Complexity**: Five node types and nine relationship types vs. the current one node type and one relationship type. More types means more code in `neo4j_store.py` and `service_analyzer.py`.
+- **False positives in symbol matching**: Even scoped by package.json, common names (`get`, `put`, `create`) may match incorrectly. Mitigation: require file path context, not just symbol name.
+- **Deployment-config dependency**: Layer 3 requires access to the Ansible deployment repo (often private). Without it, the service topology is inferred from code patterns only (lower confidence).
+- **Maintenance**: Adding a new repo to the ecosystem requires updating this document, re-running `link_repos()`, and verifying the topology.
+
+### Full data model
+
+See `docs/architecture/knowledge-graph.md` for the complete specification: all node types, relationship types, properties, example queries, and the step-by-step resolution algorithm.
+
+---
+
+## ADR-012: MCP Server as Query Layer, Argo as Compute Layer
+
+**Date**: 2026-04-03
+
+**Status**: Accepted
+
+**Context**:
+The MCP server exposes tools (index_repo, link_repos, code_search, service_topology, etc.) to Claude Code and other MCP clients. When we added cross-repo linking (link_repos) and Ansible config indexing (index_ansible_repo), both were initially implemented to run in-process on the MCP server pod. This failed because:
+
+1. link_repos tried to read package.json from local filesystem clones — but clones only exist on ephemeral Argo worker pods
+2. index_ansible_repo tried to run git clone — but the MCP Docker image (Dockerfile.mcp) intentionally has no git installed
+
+**Decision**:
+Enforce a strict separation:
+
+- **MCP server** = query + orchestrate (thin layer)
+  - Queries pgvector (code_search, context_assemble)
+  - Queries Neo4j (graph_query, graph_path, service_topology, service_deps)
+  - Reads repos table (list_repos, link_repos reads dep_map from DB)
+  - Submits Argo workflows (index_repo, index_ansible_repo)
+  - Never clones repos, never reads the filesystem, never runs parsers or embeddings
+
+- **Argo worker pods** = clone + parse + embed + store (thick layer)
+  - Clone repos (git with GITHUB_TOKEN for private repos)
+  - Parse code (tree-sitter for JS/TS/Go, ast for Python)
+  - Parse configs (ansible mode: text chunking)
+  - Generate embeddings (Vertex AI via LiteLLM)
+  - Store in pgvector + Neo4j
+  - Persist dep_map to repos table for cross-repo linking
+  - Create XREF edges after indexing
+
+- **Database** = shared state
+  - PostgreSQL repos table: metadata + dep_map (JSONB)
+  - pgvector: code embeddings
+  - Neo4j: symbol graph + service topology
+
+All repo data that the MCP server needs is persisted in the database during Argo indexing. The MCP server never needs filesystem access to answer queries.
+
+**Indexing modes** are controlled by a `--mode` flag on the Argo worker CLI:
+- `code` (default): tree-sitter AST parsing for JS/TS/Go/Python
+- `ansible`: text chunking for config templates, docs, playbooks
+- Future: `java`, `rust`, `docs-only` — add new modes as parsers are built
+
+**Trade-offs**:
+- (+) MCP image stays small (~200MB) — fast startup, low memory
+- (+) Argo pods are ephemeral — no state accumulation, clean per-job
+- (+) dep_map in DB means link_repos works without any filesystem access
+- (+) --mode flag is extensible for future indexing types
+- (-) Ansible repo indexing has Argo pod startup latency (~60s on GKE Autopilot)
+- (-) dep_map must be re-persisted on every re-index (minor overhead)
