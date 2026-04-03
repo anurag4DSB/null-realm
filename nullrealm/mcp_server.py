@@ -135,23 +135,67 @@ async def context_assemble(query: str) -> str:
 
 
 @mcp.tool()
-async def index_repo(url: str, branch: str = "main", name: str = "") -> str:
-    """Clone a Git repo and index it into the knowledge graph.
+async def add_repo(url: str, branch: str = "main", name: str = "", auth_type: str = "public") -> str:
+    """Register a repository without indexing it.
 
-    Supports private repos via SSH (git@github.com:org/repo.git).
-    Public repos use HTTPS. Re-indexing is idempotent — old data is replaced.
+    Creates an entry in the repos table with status=pending.
+    Use index_repo to trigger the actual indexing workflow.
+
+    Args:
+        url: Git clone URL (HTTPS).
+        branch: Branch to index (default: main).
+        name: Short name for the repo (derived from URL if empty).
+        auth_type: "public" or "token" (for private repos using GITHUB_TOKEN).
     """
-    from nullrealm.context.repo_manager import index_repository
+    from nullrealm.context.repo_manager import register_repo, _derive_repo_name
     try:
-        result = await index_repository(url, branch=branch, repo_name=name)
+        repo_name = name or _derive_repo_name(url)
+        repo = await register_repo(repo_name, url, branch=branch, auth_type=auth_type)
         return (
-            f"Indexed '{result['repo_name']}' from {result['url']}:\n"
-            f"  Chunks: {result['chunks']}\n"
-            f"  Relationships: {result['relationships']}\n"
-            f"  Summary: {result['summary_path'] or 'skipped'}"
+            f"Registered '{repo['name']}' ({repo['url']}, branch={repo['branch']}, auth={repo['auth_type']}).\n"
+            f"Status: {repo['status']}. Use index_repo to start indexing."
         )
     except Exception as e:
-        return f"Indexing failed: {e}"
+        return f"Failed to register repo: {e}"
+
+
+@mcp.tool()
+async def index_repo(url: str, branch: str = "main", name: str = "", auth_type: str = "public") -> str:
+    """Index a Git repo into the knowledge graph via an Argo workflow.
+
+    Registers the repo, then submits an Argo workflow to clone and index it
+    in a dedicated pod (non-blocking). Use list_repos to check progress.
+
+    Supports private GitHub repos via GITHUB_TOKEN when auth_type="token".
+    Re-indexing is idempotent -- old data is replaced on completion.
+    """
+    from nullrealm.context.repo_manager import register_repo, update_repo_status, _derive_repo_name
+    from nullrealm.orchestrator.argo_client import ArgoClient
+
+    repo_name = name or _derive_repo_name(url)
+    try:
+        # Register/upsert in repos table
+        await register_repo(repo_name, url, branch=branch, auth_type=auth_type)
+
+        # Submit Argo workflow
+        argo = ArgoClient()
+        workflow_name = await argo.submit_workflow("repo-indexer", {
+            "url": url,
+            "branch": branch,
+            "repo_name": repo_name,
+            "auth_type": auth_type,
+        })
+        return (
+            f"Indexing '{repo_name}' started (workflow: {workflow_name}).\n"
+            f"Use list_repos to check status."
+        )
+    except Exception as e:
+        # Mark as failed if Argo submission fails
+        try:
+            await update_repo_status(repo_name, "failed", error=f"Argo submission failed: {e}")
+        except Exception:
+            pass
+        return f"Failed to start indexing: {e}"
 
 
 @mcp.tool()
@@ -172,18 +216,23 @@ async def delete_repo_index(repo_name: str) -> str:
 
 @mcp.tool()
 async def list_repos() -> str:
-    """List all indexed repositories with chunk counts and file stats."""
+    """List all repositories with status, chunk counts, and metadata."""
     from nullrealm.context.repo_manager import list_indexed_repos
     repos = await list_indexed_repos()
     if not repos:
-        return "No repositories indexed yet. Use index_repo to add one."
-    lines = ["Indexed repositories:\n"]
+        return "No repositories registered yet. Use add_repo or index_repo to add one."
+    lines = ["Repositories:\n"]
     for r in repos:
+        status_icon = {"ready": "[ok]", "indexing": "[..]", "pending": "[--]", "failed": "[!!]"}.get(r["status"], "[??]")
         lines.append(
-            f"  {r['repo']}:\n"
-            f"    Chunks: {r['chunks']}, Files: {r['files']}\n"
-            f"    First indexed: {r.get('first_indexed', 'unknown')}"
+            f"  {status_icon} {r['name']}:\n"
+            f"    URL: {r['url']} (branch: {r['branch']})\n"
+            f"    Status: {r['status']}, Auth: {r['auth_type']}\n"
+            f"    Chunks: {r['chunk_count']}, Files: {r['file_count']}\n"
+            f"    Last indexed: {r.get('last_indexed_at') or 'never'}"
         )
+        if r.get("index_error"):
+            lines.append(f"    Error: {r['index_error']}")
     return "\n".join(lines)
 
 
@@ -237,17 +286,24 @@ Local Kind services have no auth.
 
 @mcp.resource("null-realm://repos")
 async def indexed_repos_resource() -> str:
-    """Dynamically lists all indexed repositories with stats."""
+    """Dynamically lists all repositories with status and stats."""
     from nullrealm.context.repo_manager import list_indexed_repos
     repos = await list_indexed_repos()
     if not repos:
-        return "No repositories indexed yet. Use the index_repo tool to add one."
-    lines = ["# Indexed Repositories\n"]
+        return "No repositories registered yet. Use the index_repo tool to add one."
+    lines = ["# Repositories\n"]
     for r in repos:
-        lines.append(f"## {r['repo']}")
-        lines.append(f"- **Chunks**: {r['chunks']}")
-        lines.append(f"- **Files**: {r['files']}")
-        lines.append(f"- **First indexed**: {r.get('first_indexed', 'unknown')}\n")
+        lines.append(f"## {r['name']}")
+        lines.append(f"- **URL**: {r['url']}")
+        lines.append(f"- **Branch**: {r['branch']}")
+        lines.append(f"- **Status**: {r['status']}")
+        lines.append(f"- **Auth**: {r['auth_type']}")
+        lines.append(f"- **Chunks**: {r['chunk_count']}")
+        lines.append(f"- **Files**: {r['file_count']}")
+        lines.append(f"- **Last indexed**: {r.get('last_indexed_at') or 'never'}")
+        if r.get("index_error"):
+            lines.append(f"- **Error**: {r['index_error']}")
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -259,6 +315,14 @@ async def indexed_repos_resource() -> str:
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the MCP session manager lifecycle."""
+    # Ensure repos table (and other registry tables) exist
+    try:
+        from nullrealm.registry.database import init_db
+        await init_db()
+        logger.info("Database tables initialised (MCP)")
+    except Exception:
+        logger.warning("Could not initialise database — repos table may not exist")
+
     async with mcp.session_manager.run():
         yield
 

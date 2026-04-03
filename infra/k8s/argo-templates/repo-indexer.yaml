@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: repo-indexer
+  namespace: null-realm-agents
+spec:
+  entrypoint: index-repo
+  serviceAccountName: argo-workflow
+  arguments:
+    parameters:
+      - name: url
+        value: ""
+      - name: branch
+        value: "main"
+      - name: repo_name
+        value: ""
+      - name: auth_type
+        value: "public"
+  templates:
+    - name: index-repo
+      inputs:
+        parameters:
+          - name: url
+          - name: branch
+          - name: repo_name
+          - name: auth_type
+      container:
+        image: null-realm-worker:latest
+        imagePullPolicy: Never
+        command: ["uv", "run", "python", "-m", "nullrealm.context.repo_manager_cli"]
+        args:
+          - "--url={{inputs.parameters.url}}"
+          - "--branch={{inputs.parameters.branch}}"
+          - "--name={{inputs.parameters.repo_name}}"
+          - "--auth-type={{inputs.parameters.auth_type}}"
+        env:
+          - name: DATABASE_URL
+            value: "postgresql+asyncpg://nullrealm:nullrealm_dev@postgres.null-realm.svc.cluster.local:5432/nullrealm"
+          - name: NEO4J_URI
+            value: "bolt://neo4j.null-realm.svc.cluster.local:7687"
+          - name: NEO4J_USER
+            value: "neo4j"
+          - name: NEO4J_PASSWORD
+            value: "neo4j-null-realm"
+          - name: LITELLM_URL
+            value: "http://litellm.null-realm.svc.cluster.local:4000/v1"
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://jaeger.null-realm.svc.cluster.local:4317"
+          - name: GITHUB_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: mcp-secrets
+                key: GITHUB_TOKEN
+                optional: true
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            cpu: "1"
+            memory: 2Gi

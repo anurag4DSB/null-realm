@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, Integer, JSON, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -63,3 +63,17 @@ class Workflow(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     steps: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
     max_parallel_agents: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class Repository(Base):
+    __tablename__ = "repos"
+
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    branch: Mapped[str] = mapped_column(String(255), nullable=False, default="main")
+    auth_type: Mapped[str] = mapped_column(String(50), nullable=False, default="public")  # public, token
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # pending, indexing, ready, failed
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    index_error: Mapped[str | None] = mapped_column(Text, nullable=True)

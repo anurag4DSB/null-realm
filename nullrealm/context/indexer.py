@@ -264,13 +264,15 @@ async def index_repo(
     repo_path: str,
     embed: bool = True,
     graph: bool = False,
+    repo_name: str = "",
 ) -> tuple[list[CodeChunk], list[CodeRelationship]]:
     """Walk a repository and parse all Python files.
 
     Args:
         repo_path: Root directory to index.
         embed: If True, embed chunks and store in pgvector.
-        graph: If True, store relationships (reserved for Task 2 / Neo4j).
+        graph: If True, store relationships in Neo4j.
+        repo_name: Repository name for Neo4j node tagging.
 
     Returns:
         Tuple of (all_chunks, all_relationships).
@@ -331,7 +333,7 @@ async def index_repo(
 
         logger.info("Storing %d relationships in Neo4j...", len(all_relationships))
         store = Neo4jStore()
-        await store.store_graph(all_relationships)
+        await store.store_graph(all_relationships, repo_name=repo_name or repo.name)
         await store.close()
         logger.info("Graph storage complete")
 
