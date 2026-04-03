@@ -236,6 +236,107 @@ async def list_repos() -> str:
     return "\n".join(lines)
 
 
+@mcp.tool()
+async def link_repos() -> str:
+    """Create cross-repo symbol links and service topology edges.
+
+    Scans all indexed repos, reads their package.json dependencies,
+    and creates XREF edges linking symbols across repos. Also stores
+    service-level topology (DEPENDS_ON, USES_CLIENT, HTTP_CALLS).
+
+    Run this after indexing multiple repos to connect them in the knowledge graph.
+    """
+    from pathlib import Path
+
+    from nullrealm.context.repo_manager import list_indexed_repos, CACHE_DIR
+    from nullrealm.context.service_analyzer import parse_package_json
+    from nullrealm.context.neo4j_store import Neo4jStore
+
+    repos = await list_indexed_repos()
+    if not repos:
+        return "No repositories indexed yet. Use index_repo first."
+
+    neo4j = Neo4jStore()
+    summary_lines = ["Cross-repo linking results:\n"]
+    total_xrefs = 0
+
+    try:
+        for repo in repos:
+            if repo["status"] != "ready":
+                continue
+            repo_name = repo["name"]
+            clone_dir = Path(CACHE_DIR) / repo_name
+            if not clone_dir.exists():
+                summary_lines.append(f"  {repo_name}: skipped (no cached clone)")
+                continue
+
+            dep_map = parse_package_json(clone_dir)
+            if dep_map:
+                xref_count = await neo4j.link_cross_repo(repo_name, dep_map)
+                total_xrefs += xref_count
+                summary_lines.append(
+                    f"  {repo_name}: {xref_count} XREF edges "
+                    f"({len(dep_map)} deps: {', '.join(dep_map.keys())})"
+                )
+            else:
+                summary_lines.append(f"  {repo_name}: no Scality dependencies found")
+    finally:
+        await neo4j.close()
+
+    summary_lines.append(f"\nTotal: {total_xrefs} XREF edges across {len(repos)} repos")
+    return "\n".join(summary_lines)
+
+
+@mcp.tool()
+async def service_topology() -> str:
+    """Show the full service topology: which services talk to which,
+    via what protocols, what APIs they expose, and what infrastructure they use.
+
+    Returns the complete service graph from the Neo4j knowledge graph.
+    """
+    from nullrealm.context.neo4j_store import Neo4jStore
+
+    neo4j = Neo4jStore()
+    try:
+        results = await neo4j.query_service_topology()
+        if not results:
+            return "No service topology found. Index repos with --graph first, then run link_repos."
+        lines = ["Service Topology:\n"]
+        for r in results:
+            lines.append(
+                f"  {r['source']} --[{r['relationship']}]--> {r['target']}"
+                f"  ({r.get('protocol', '')})"
+            )
+        return "\n".join(lines)
+    finally:
+        await neo4j.close()
+
+
+@mcp.tool()
+async def service_deps(service_name: str) -> str:
+    """Show all dependencies of a specific service.
+
+    Returns upstream services it calls, downstream services that call it,
+    Kafka topics it produces/consumes, and infrastructure it depends on.
+    """
+    from nullrealm.context.neo4j_store import Neo4jStore
+
+    neo4j = Neo4jStore()
+    try:
+        results = await neo4j.query_service_deps(service_name)
+        if not results:
+            return f"No dependency data found for service '{service_name}'."
+        lines = [f"Dependencies of '{service_name}':\n"]
+        for category, items in results.items():
+            if items:
+                lines.append(f"  {category}:")
+                for item in items:
+                    lines.append(f"    - {item}")
+        return "\n".join(lines)
+    finally:
+        await neo4j.close()
+
+
 # ---------------------------------------------------------------------------
 # MCP Resources
 # ---------------------------------------------------------------------------

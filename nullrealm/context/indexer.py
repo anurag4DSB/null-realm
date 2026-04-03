@@ -272,7 +272,7 @@ async def index_repo(
     embed: bool = True,
     graph: bool = False,
     repo_name: str = "",
-) -> tuple[list[CodeChunk], list[CodeRelationship]]:
+) -> tuple[list[CodeChunk], list[CodeRelationship], dict, "ServiceAnalysis | None"]:
     """Walk a repository and parse all supported source files.
 
     Args:
@@ -282,13 +282,22 @@ async def index_repo(
         repo_name: Repository name for Neo4j node tagging.
 
     Returns:
-        Tuple of (all_chunks, all_relationships).
+        Tuple of (all_chunks, all_relationships, dep_map, service_analysis).
+        dep_map: dict of Scality package.json dependencies (empty if none).
+        service_analysis: ServiceAnalysis object if graph=True, else None.
     """
     from collections import Counter
 
     from nullrealm.context.parsers import SUPPORTED_EXTENSIONS, parse_file
 
     repo = Path(repo_path).resolve()
+
+    # Parse package.json for dependency map (used for cross-repo linking)
+    from nullrealm.context.service_analyzer import parse_package_json
+    dep_map = parse_package_json(repo)
+    if dep_map:
+        logger.info("Found %d Scality dependencies: %s", len(dep_map), list(dep_map.keys()))
+
     all_chunks: list[CodeChunk] = []
     all_relationships: list[CodeRelationship] = []
 
@@ -354,7 +363,20 @@ async def index_repo(
         await store.close()
         logger.info("Graph storage complete")
 
-    return all_chunks, all_relationships
+    # Run service analysis after all parsing is done
+    if graph:
+        from nullrealm.context.service_analyzer import analyze_service
+        service_analysis = analyze_service(repo_name or repo.name, repo, all_chunks)
+        logger.info(
+            "Service analysis: %d connections, %d endpoints, %d topics",
+            len(service_analysis.connections),
+            len(service_analysis.endpoints),
+            len(service_analysis.topics),
+        )
+    else:
+        service_analysis = None
+
+    return all_chunks, all_relationships, dep_map, service_analysis
 
 
 def main():
@@ -365,7 +387,7 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    chunks, rels = asyncio.run(index_repo(args.repo, embed=args.embed, graph=args.graph))
+    chunks, rels, _dep_map, _svc = asyncio.run(index_repo(args.repo, embed=args.embed, graph=args.graph))
     print(f"\nIndexing complete: {len(chunks)} chunks, {len(rels)} relationships")
 
     # Print summary by symbol type and language

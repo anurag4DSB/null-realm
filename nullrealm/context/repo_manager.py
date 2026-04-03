@@ -223,7 +223,9 @@ async def index_repository(
     repo_dir = await clone_or_pull(url, branch, repo_name, auth_type=auth_type)
 
     from nullrealm.context.indexer import index_repo
-    chunks, rels = await index_repo(str(repo_dir), embed=embed, graph=graph, repo_name=repo_name)
+    chunks, rels, dep_map, service_analysis = await index_repo(
+        str(repo_dir), embed=embed, graph=graph, repo_name=repo_name,
+    )
 
     # Count unique files
     unique_files = set()
@@ -246,6 +248,8 @@ async def index_repository(
         "files": files_count,
         "relationships": len(rels),
         "summary_path": summary_path or "",
+        "dep_map": dep_map,
+        "service_analysis": service_analysis,
     }
 
 

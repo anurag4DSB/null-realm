@@ -18,8 +18,8 @@ The platform is a microservice architecture built primarily in JavaScript/Node.j
 | vaultclient | Open | JS | HTTP client library for Vault -- defines the auth API contract. Imported by any service that needs to authenticate requests. |
 | bucketclient | Open | JS | HTTP client library for MetaData/bucketd -- defines the metadata API contract. |
 | utapi | Open | JS | Utilization and metrics service -- tracks storage usage per account and per bucket. |
-| scuba | Open | JS | Quota and utilization enforcement service. |
-| scubaclient | Open | JS | HTTP client library for scuba -- quota enforcement API contract. |
+| scuba (SUR in Federation) | Open | JS | Quota and utilization enforcement service. Known as "SUR" (Scality Usage Reports) in Federation deployments. |
+| scubaclient | Open | JS | HTTP client library for scuba/SUR -- quota enforcement API contract. |
 | sproxydclient | Open | JS | HTTP client library for sproxyd -- object data storage API contract. |
 | Federation | Closed | Ansible | Deployment orchestrator -- Ansible playbooks that define how all services are deployed, configured, and connected. The single source of truth for service topology, ports, and connection parameters. |
 
