@@ -1,7 +1,7 @@
-"""AST-based Python code indexer with embedding support.
+"""Multi-language code indexer with embedding support.
 
-Parses Python files into CodeChunks, extracts inter-symbol relationships,
-and optionally embeds + stores in pgvector.
+Parses source files (Python, JS/TS, Go) into CodeChunks, extracts
+inter-symbol relationships, and optionally embeds + stores in pgvector.
 """
 
 import argparse
@@ -24,6 +24,13 @@ SKIP_DIRS = {
     ".ruff_cache",
     ".tox",
     "site-packages",
+    "dist",
+    "build",
+    ".next",
+    "coverage",
+    "vendor",
+    ".yarn",
+    "bower_components",
 }
 
 
@@ -266,7 +273,7 @@ async def index_repo(
     graph: bool = False,
     repo_name: str = "",
 ) -> tuple[list[CodeChunk], list[CodeRelationship]]:
-    """Walk a repository and parse all Python files.
+    """Walk a repository and parse all supported source files.
 
     Args:
         repo_path: Root directory to index.
@@ -277,22 +284,32 @@ async def index_repo(
     Returns:
         Tuple of (all_chunks, all_relationships).
     """
+    from collections import Counter
+
+    from nullrealm.context.parsers import SUPPORTED_EXTENSIONS, parse_file
+
     repo = Path(repo_path).resolve()
     all_chunks: list[CodeChunk] = []
     all_relationships: list[CodeRelationship] = []
 
-    py_files = []
-    for p in repo.rglob("*.py"):
-        # Skip directories in SKIP_DIRS
-        if any(part in SKIP_DIRS for part in p.parts):
-            continue
-        py_files.append(p)
+    source_files = [
+        p for p in repo.rglob("*")
+        if p.suffix in SUPPORTED_EXTENSIONS
+        and not any(part in SKIP_DIRS for part in p.parts)
+    ]
 
-    logger.info("Found %d Python files in %s", len(py_files), repo)
+    # Log language breakdown
+    ext_counts = Counter(p.suffix for p in source_files)
+    logger.info(
+        "Found %d source files in %s: %s",
+        len(source_files),
+        repo,
+        ", ".join(f"{ext}={count}" for ext, count in ext_counts.most_common()),
+    )
 
-    for py_file in sorted(py_files):
-        rel_path = str(py_file.relative_to(repo))
-        chunks, rels = parse_python_file(str(py_file))
+    for source_file in sorted(source_files):
+        rel_path = str(source_file.relative_to(repo))
+        chunks, rels = parse_file(str(source_file))
 
         # Normalize file paths to be relative
         for c in chunks:
@@ -341,7 +358,7 @@ async def index_repo(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Index a Python repo into pgvector")
+    parser = argparse.ArgumentParser(description="Index a source code repo into pgvector")
     parser.add_argument("--repo", default=".", help="Path to repository root")
     parser.add_argument("--embed", action="store_true", help="Embed and store in pgvector")
     parser.add_argument("--graph", action="store_true", help="Store relationships (Task 2)")
@@ -351,12 +368,18 @@ def main():
     chunks, rels = asyncio.run(index_repo(args.repo, embed=args.embed, graph=args.graph))
     print(f"\nIndexing complete: {len(chunks)} chunks, {len(rels)} relationships")
 
-    # Print summary by symbol type
+    # Print summary by symbol type and language
     from collections import Counter
 
     type_counts = Counter(c.symbol_type for c in chunks)
     for stype, count in type_counts.most_common():
         print(f"  {stype}: {count}")
+
+    lang_counts = Counter(c.language for c in chunks)
+    if len(lang_counts) > 1:
+        print("\nBy language:")
+        for lang, count in lang_counts.most_common():
+            print(f"  {lang}: {count}")
 
 
 if __name__ == "__main__":
