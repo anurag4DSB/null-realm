@@ -323,8 +323,22 @@ class Neo4jStore:
             Number of XREF edges created.
         """
         total_created = 0
+        # Build a lookup of indexed repo names (case-insensitive) for dep_map resolution
+        indexed_repos: dict[str, str] = {}  # lowercase → actual name in Neo4j
+        async with self._driver.session() as session:
+            repo_result = await session.run("MATCH (s:Symbol) RETURN DISTINCT s.repo AS repo")
+            async for record in repo_result:
+                name = record["repo"]
+                if name:
+                    indexed_repos[name.lower()] = name
+
         async with self._driver.session() as session:
             for dep_name, dep_repo in dep_map.items():
+                # Resolve dep_repo to actual Neo4j repo name (case-insensitive)
+                actual_dep_repo = indexed_repos.get(dep_repo.lower())
+                if not actual_dep_repo:
+                    continue
+
                 # Step 1: find files in this repo that import the dependency
                 import_result = await session.run(
                     """
@@ -352,7 +366,7 @@ class Neo4jStore:
                     """,
                     repo=repo_name,
                     importing_files=importing_files,
-                    dep_repo=dep_repo,
+                    dep_repo=actual_dep_repo,
                     dep_name=dep_name,
                 )
                 record = await xref_result.single()
@@ -360,7 +374,7 @@ class Neo4jStore:
                 if created:
                     logger.info(
                         "Linked %d XREF edges: %s -> %s (via %s)",
-                        created, repo_name, dep_repo, dep_name,
+                        created, repo_name, actual_dep_repo, dep_name,
                     )
                 total_created += created
 
