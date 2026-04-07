@@ -282,3 +282,91 @@ uv run invoke kind-up             # local cluster (if doing local work)
 # End of session — save money
 uv run invoke sql-stop            # stop Cloud SQL
 ```
+
+---
+
+## Knowledge Graph — Re-Index All Repos
+
+When the parser or indexing pipeline changes, re-index everything from scratch.
+
+### Prerequisites
+- Worker and MCP images built and pushed with latest code
+- MCP server restarted on GKE
+- MCP connected (run `/mcp` in Claude Code)
+- GITHUB_TOKEN secret exists in `null-realm-agents` namespace for private repos
+
+### Step 1: Delete all existing indexes
+
+```
+# Via MCP tools (in Claude Code):
+delete_repo_index("cloudserver")
+delete_repo_index("Arsenal")
+delete_repo_index("backbeat")
+delete_repo_index("vault")
+delete_repo_index("MetaData")
+delete_repo_index("utapi")
+delete_repo_index("scuba")
+delete_repo_index("bucketclient")
+delete_repo_index("vaultclient")
+delete_repo_index("scubaclient")
+delete_repo_index("sproxydclient")
+delete_repo_index("Federation")
+```
+
+### Step 2: Re-index all 12 repos (parallel Argo workflows)
+
+```
+# Code repos (11):
+index_repo("https://github.com/scality/cloudserver", branch="development/9.2")
+index_repo("https://github.com/scality/Arsenal", branch="development/8.3")
+index_repo("https://github.com/scality/backbeat", branch="development/9.3")
+index_repo("https://github.com/scality/vault", branch="development/7", auth_type="token")
+index_repo("https://github.com/scality/MetaData", branch="development/9", auth_type="token")
+index_repo("https://github.com/scality/utapi", branch="development/8.2")
+index_repo("https://github.com/scality/scuba", branch="main", auth_type="token")
+index_repo("https://github.com/scality/bucketclient", branch="development/8.2")
+index_repo("https://github.com/scality/vaultclient", branch="development/8.5")
+index_repo("https://github.com/scality/scubaclient", branch="development/1.1")
+index_repo("https://github.com/scality/sproxydclient", branch="development/8.2")
+
+# Federation (config mode):
+index_federation_repo("https://github.com/scality/Federation", branch="development/10", auth_type="token")
+```
+
+All 12 run as parallel Argo workflows on GKE. Takes ~5 min total.
+
+### Step 3: Verify all repos are ready
+
+```
+list_repos()
+# All 12 should show status: ready
+```
+
+### Step 4: Create cross-repo XREF edges
+
+```
+link_repos()
+# Creates XREF edges across repos using dep_map from package.json
+```
+
+### Step 5: Verify cross-repo linking
+
+```
+service_topology()     # Shows service-to-service connections
+graph_query("MetadataWrapper", depth=2)  # Should show Arsenal + callers from other repos
+code_search("bucket policy validation")  # Should return JS code from cloudserver
+```
+
+### Step 6: Restart visualization apps (optional)
+
+```bash
+kubectl scale deploy/spotlight deploy/atlas deploy/projector --replicas=1 \
+  -n null-realm --context gke_helpful-rope-230010_europe-west1_null-realm
+```
+
+### Notes
+- If Neo4j crashes during parallel indexing (>10 concurrent workflows), re-submit the failed repos
+- Private repos (vault, MetaData, scuba, Federation) need `auth_type="token"`
+- Federation uses `--mode federation` (text chunking), all others use `--mode code` (tree-sitter)
+- Cloudserver branch is `development/9.2` (NOT `main`)
+- Scuba branch is `main` (not `development/*`)
