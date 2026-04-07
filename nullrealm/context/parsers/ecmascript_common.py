@@ -14,6 +14,36 @@ from nullrealm.context.indexer import CodeChunk, CodeRelationship
 
 logger = logging.getLogger(__name__)
 
+# Built-in / stdlib JS names to skip when creating CALLS edges.
+# These are noise — they match nothing useful in other repos and clutter the graph.
+JS_BUILTIN_CALLS = frozenset({
+    # Console/logging
+    "log", "info", "warn", "error", "debug", "trace", "dir",
+    # Process/timers
+    "nextTick", "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+    # Array/Object methods
+    "forEach", "map", "filter", "reduce", "find", "findIndex", "some", "every",
+    "push", "pop", "shift", "unshift", "splice", "slice", "concat", "join",
+    "keys", "values", "entries", "assign", "freeze", "create",
+    "includes", "indexOf", "lastIndexOf", "sort", "reverse",
+    # String methods
+    "toString", "valueOf", "trim", "split", "replace", "match", "startsWith", "endsWith",
+    "toLowerCase", "toUpperCase", "substring", "charAt", "charCodeAt",
+    # JSON/Math/Promise
+    "parse", "stringify", "floor", "ceil", "round", "random", "abs", "min", "max",
+    "resolve", "reject", "all", "race", "then", "catch", "finally",
+    # Node.js
+    "require", "emit", "on", "once", "removeListener", "write", "end", "pipe",
+    "bind", "call", "apply",
+    # Async
+    "waterfall", "parallel", "series", "each", "eachSeries", "eachLimit",
+    # Common generic
+    "callback", "cb", "next", "done", "err",
+    "get", "set", "has", "delete",
+    "now", "isArray", "isNaN", "parseInt", "parseFloat",
+    "encode", "decode",
+})
+
 
 def _node_text(node: Node, source: bytes) -> str:
     """Extract the UTF-8 text for a tree-sitter node."""
@@ -50,7 +80,7 @@ def _find_base_class_name(heritage_node: Node, source: bytes) -> str | None:
 
 
 def _collect_calls(node: Node, source: bytes) -> list[str]:
-    """Recursively collect call_expression target names from a node."""
+    """Recursively collect call_expression and new_expression target names from a node."""
     calls: list[str] = []
     if node.type == "call_expression":
         func_node = node.children[0] if node.children else None
@@ -60,6 +90,17 @@ def _collect_calls(node: Node, source: bytes) -> list[str]:
             elif func_node.type == "member_expression":
                 # e.g. obj.method() -> extract "method"
                 prop = _find_child_by_type(func_node, "property_identifier")
+                if prop:
+                    calls.append(_node_text(prop, source))
+    elif node.type == "new_expression":
+        # e.g. new Foo() or new arsenal.MetadataWrapper()
+        constructor_node = _find_child_by_type(node, "identifier")
+        if constructor_node:
+            calls.append(_node_text(constructor_node, source))
+        else:
+            member_node = _find_child_by_type(node, "member_expression")
+            if member_node:
+                prop = _find_child_by_type(member_node, "property_identifier")
                 if prop:
                     calls.append(_node_text(prop, source))
     for child in node.children:
@@ -124,15 +165,16 @@ def parse_ecmascript_tree(
                 )
             )
             for call_name in calls:
-                relationships.append(
-                    CodeRelationship(
-                        source_file=file_path,
-                        source_symbol=func_name,
-                        relationship="CALLS",
-                        target_file="",
-                        target_symbol=call_name,
+                if call_name not in JS_BUILTIN_CALLS:
+                    relationships.append(
+                        CodeRelationship(
+                            source_file=file_path,
+                            source_symbol=func_name,
+                            relationship="CALLS",
+                            target_file="",
+                            target_symbol=call_name,
+                        )
                     )
-                )
 
         # --- Class declarations ---
         elif node.type == "class_declaration":
@@ -170,15 +212,16 @@ def parse_ecmascript_tree(
                         )
                     )
                     for call_name in calls:
-                        relationships.append(
-                            CodeRelationship(
-                                source_file=file_path,
-                                source_symbol=func_name,
-                                relationship="CALLS",
-                                target_file="",
-                                target_symbol=call_name,
+                        if call_name not in JS_BUILTIN_CALLS:
+                            relationships.append(
+                                CodeRelationship(
+                                    source_file=file_path,
+                                    source_symbol=func_name,
+                                    relationship="CALLS",
+                                    target_file="",
+                                    target_symbol=call_name,
+                                )
                             )
-                        )
 
                 elif child.type == "class_declaration":
                     _parse_class(
@@ -283,15 +326,16 @@ def _parse_class(
                 )
 
                 for call_name in calls:
-                    relationships.append(
-                        CodeRelationship(
-                            source_file=file_path,
-                            source_symbol=full_name,
-                            relationship="CALLS",
-                            target_file="",
-                            target_symbol=call_name,
+                    if call_name not in JS_BUILTIN_CALLS:
+                        relationships.append(
+                            CodeRelationship(
+                                source_file=file_path,
+                                source_symbol=full_name,
+                                relationship="CALLS",
+                                target_file="",
+                                target_symbol=call_name,
+                            )
                         )
-                    )
 
 
 def _parse_variable_declarator(
@@ -334,15 +378,16 @@ def _parse_variable_declarator(
             )
         )
         for call_name in calls:
-            relationships.append(
-                CodeRelationship(
-                    source_file=file_path,
-                    source_symbol=var_name,
-                    relationship="CALLS",
-                    target_file="",
-                    target_symbol=call_name,
+            if call_name not in JS_BUILTIN_CALLS:
+                relationships.append(
+                    CodeRelationship(
+                        source_file=file_path,
+                        source_symbol=var_name,
+                        relationship="CALLS",
+                        target_file="",
+                        target_symbol=call_name,
+                    )
                 )
-            )
         return
 
     # Check for require() calls — CommonJS imports
