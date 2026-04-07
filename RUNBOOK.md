@@ -204,7 +204,36 @@ kubectl create secret generic oauth2-proxy-secrets \
 - Client ID/Secret: GCP Console → APIs & Services → Credentials → `null-realm` OAuth client
 - Cookie secret: auto-generated (any 32-char hex string)
 
-### 3. Langfuse account + project
+### 3. K8s Secrets: `null-realm-db`, `langfuse-secrets`, `mcp-secrets` (null-realm namespace)
+
+**What**: Database/Neo4j credentials, Langfuse auth secrets, MCP server auth.
+**Used by**: All app pods and Argo templates (`null-realm-db`), Neo4j, Grafana's Langfuse datasource, Langfuse (`langfuse-secrets`), MCP server (`mcp-secrets`).
+
+```bash
+kubectl create secret generic null-realm-db \
+  --from-literal=database-url="postgresql+asyncpg://nullrealm:<db-password>@CLOUD_SQL_PRIVATE_IP:5432/nullrealm" \
+  --from-literal=langfuse-database-url="postgresql://nullrealm:<db-password>@CLOUD_SQL_PRIVATE_IP:5432/nullrealm" \
+  --from-literal=postgres-password="<db-password>" \
+  --from-literal=neo4j-password="<neo4j-password>" \
+  --from-literal=neo4j-auth="neo4j/<neo4j-password>" \
+  -n null-realm --context $CTX
+
+kubectl create secret generic langfuse-secrets \
+  --from-literal=nextauth-secret="$(openssl rand -hex 32)" \
+  --from-literal=salt="$(openssl rand -hex 32)" \
+  -n null-realm --context $CTX
+
+kubectl create secret generic mcp-secrets \
+  --from-literal=GOOGLE_OAUTH_CLIENT_ID="<Google OAuth Client ID>" \
+  --from-literal=GOOGLE_OAUTH_CLIENT_SECRET="<Google OAuth Client Secret>" \
+  --from-literal=MCP_JWT_SECRET="$(openssl rand -hex 32)" \
+  -n null-realm --context $CTX
+```
+
+For local Kind, create the same `null-realm-db` and `langfuse-secrets` with the in-cluster host `postgres.null-realm.svc.cluster.local`. The same `null-realm-db` Secret is also needed in the `null-realm-agents` namespace for Argo pods.
+Allowed logins: edit `infra/k8s/gke/oauth2-proxy/allowed-emails.yaml` (oauth2-proxy) and `MCP_ALLOWED_EMAILS` in `infra/k8s/gke/mcp/deployment.yaml` (MCP; empty rejects everyone).
+
+### 4. Langfuse account + project
 
 **What**: Langfuse needs a user account and project to generate API keys.
 **Affects**: LLM trace visibility in Langfuse UI.
@@ -215,7 +244,7 @@ kubectl create secret generic oauth2-proxy-secrets \
 4. Go to API Keys → Create new key
 5. Copy Public Key + Secret Key → update `llm-api-keys` K8s secret (step 1)
 
-### 4. Google OAuth redirect URI
+### 5. Google OAuth redirect URI
 
 **What**: Google requires a redirect URI for OAuth login flow.
 **Affects**: Login won't work without this.
@@ -224,7 +253,7 @@ kubectl create secret generic oauth2-proxy-secrets \
 2. Add redirect URI: `http://INGRESS_IP.nip.io/oauth2/callback`
    (replace IP if Traefik's LoadBalancer IP changed)
 
-### 5. Seed registry data
+### 6. Seed registry data
 
 **What**: Tools, prompts, assistants, workflows in PostgreSQL.
 **How**: Run from inside the api-server pod:
@@ -234,7 +263,7 @@ kubectl exec -n null-realm deploy/api-server --context $CTX -- \
   uv run python -m nullrealm.registry.seed
 ```
 
-### 6. Apply non-Helm K8s resources
+### 7. Apply non-Helm K8s resources
 
 Some resources are in the repo but not auto-applied by Helm:
 
@@ -254,7 +283,8 @@ kubectl apply -f infra/k8s/gke/grafana-datasources.yaml --context $CTX
 # Auth redirect nginx
 kubectl apply -f infra/k8s/gke/auth-redirect/ --context $CTX
 
-# OAuth2 Proxy
+# OAuth2 Proxy (allowed-emails ConfigMap first)
+kubectl apply -f infra/k8s/gke/oauth2-proxy/allowed-emails.yaml --context $CTX
 kubectl apply -f infra/k8s/gke/oauth2-proxy/deployment.yaml --context $CTX
 
 # Traefik IngressRoutes
@@ -282,3 +312,81 @@ uv run invoke kind-up             # local cluster (if doing local work)
 # End of session — save money
 uv run invoke sql-stop            # stop Cloud SQL
 ```
+
+---
+
+## Knowledge Graph — Re-Index All Repos
+
+When the parser or indexing pipeline changes, re-index everything from scratch.
+
+### Prerequisites
+- Worker and MCP images built and pushed with latest code
+- MCP server restarted on GKE
+- MCP connected (run `/mcp` in Claude Code)
+- GITHUB_TOKEN secret exists in `null-realm-agents` namespace for private repos
+
+### Step 1: Delete all existing indexes
+
+```
+# Via MCP tools (in Claude Code):
+delete_repo_index("cloudserver")
+delete_repo_index("Arsenal")
+delete_repo_index("backbeat")
+delete_repo_index("utapi")
+delete_repo_index("bucketclient")
+delete_repo_index("vaultclient")
+delete_repo_index("sproxydclient")
+```
+
+### Step 2: Re-index all repos (parallel Argo workflows)
+
+```
+# Code repos (private repos: add auth_type="token"):
+index_repo("https://github.com/scality/cloudserver", branch="development/9.2")
+index_repo("https://github.com/scality/Arsenal", branch="development/8.3")
+index_repo("https://github.com/scality/backbeat", branch="development/9.3")
+index_repo("https://github.com/scality/utapi", branch="development/8.2")
+index_repo("https://github.com/scality/bucketclient", branch="development/8.2")
+index_repo("https://github.com/scality/vaultclient", branch="development/8.5")
+index_repo("https://github.com/scality/sproxydclient", branch="development/8.2")
+
+# Ansible deployment repo (config mode), if you have one:
+index_ansible_repo("https://github.com/<owner>/<ansible-repo>", repo_name="<ansible-repo>", branch="main", auth_type="token")
+```
+
+All run as parallel Argo workflows on GKE. Takes ~5 min total.
+
+### Step 3: Verify all repos are ready
+
+```
+list_repos()
+# All should show status: ready
+```
+
+### Step 4: Create cross-repo XREF edges
+
+```
+link_repos()
+# Creates XREF edges across repos using dep_map from package.json
+```
+
+### Step 5: Verify cross-repo linking
+
+```
+service_topology()     # Shows service-to-service connections
+graph_query("MetadataWrapper", depth=2)  # Should show Arsenal + callers from other repos
+code_search("bucket policy validation")  # Should return JS code from cloudserver
+```
+
+### Step 6: Restart visualization apps (optional)
+
+```bash
+kubectl scale deploy/spotlight deploy/atlas deploy/projector --replicas=1 \
+  -n null-realm --context gke_YOUR_GCP_PROJECT_europe-west1_null-realm
+```
+
+### Notes
+- If Neo4j crashes during parallel indexing (>10 concurrent workflows), re-submit the failed repos
+- Private repos need `auth_type="token"`
+- Ansible repos use `--mode ansible` (text chunking), all others use `--mode code` (tree-sitter)
+- Cloudserver branch is `development/9.2` (NOT `main`)
