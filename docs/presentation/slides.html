@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From KubeCon to Production — Anurag Mittal @ Scality</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===== MANDATORY CSS ===== */
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; scroll-snap-align: start;
+    display: flex; flex-direction: column; position: relative;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+}
+:root {
+    --title-size: clamp(1.5rem, 5vw, 4rem);
+    --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+    --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+    --body-size: clamp(0.75rem, 1.5vw, 1.125rem);
+    --small-size: clamp(0.65rem, 1vw, 0.875rem);
+    --slide-padding: clamp(1rem, 4vw, 4rem);
+    --content-gap: clamp(0.5rem, 2vw, 2rem);
+    --element-gap: clamp(0.25rem, 1vw, 1rem);
+    --white: #ffffff;
+    --black: #0a0a0a;
+    --secondary: #555555;
+    --accent: #ff3300;
+    --green: #22863a;
+    --amber: #d97706;
+    --grid-line: rgba(0,0,0,0.06);
+}
+.card, .container, .content-box { max-width: min(90vw, 1000px); max-height: min(80vh, 700px); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: clamp(0.5rem, 1.5vw, 1rem); }
+@media (max-height: 700px) { :root { --slide-padding: clamp(0.75rem, 3vw, 2rem); --title-size: clamp(1.25rem, 4.5vw, 2.5rem); } }
+@media (max-height: 600px) { :root { --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem); --title-size: clamp(1.1rem, 4vw, 2rem); } .nav-dots, .decorative { display: none; } }
+@media (max-height: 500px) { :root { --slide-padding: clamp(0.4rem, 2vw, 1rem); --title-size: clamp(1rem, 3.5vw, 1.5rem); } }
+@media (max-width: 600px) { :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); } .grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; } html { scroll-behavior: auto; } }
+
+/* ===== REVEAL ANIMATIONS ===== */
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.1s; }
+.reveal:nth-child(2) { transition-delay: 0.2s; }
+.reveal:nth-child(3) { transition-delay: 0.3s; }
+.reveal:nth-child(4) { transition-delay: 0.4s; }
+.reveal:nth-child(5) { transition-delay: 0.5s; }
+
+/* ===== BASE TYPOGRAPHY ===== */
+body {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 400;
+    color: var(--black);
+    background: var(--white);
+    font-size: var(--body-size);
+    line-height: 1.5;
+}
+h1, h2, h3, .display {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+h1 { font-size: var(--title-size); }
+h2 { font-size: var(--h2-size); }
+h3 { font-size: var(--h3-size); }
+
+/* ===== GRID BACKGROUND ===== */
+.slide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: clamp(30px, 5vw, 60px) clamp(30px, 5vw, 60px);
+    pointer-events: none;
+    z-index: 0;
+}
+.slide-content { position: relative; z-index: 1; }
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: var(--accent);
+    z-index: 1000;
+    transition: width 0.3s ease;
+}
+
+/* ===== NAV DOTS ===== */
+.nav-dots {
+    position: fixed;
+    right: clamp(0.5rem, 1.5vw, 1.5rem);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(4px, 0.6vh, 8px);
+    z-index: 1000;
+}
+.nav-dots .dot {
+    width: clamp(6px, 0.8vw, 10px);
+    height: clamp(6px, 0.8vw, 10px);
+    border-radius: 50%;
+    background: rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: background 0.3s, transform 0.3s;
+    border: none;
+    padding: 0;
+}
+.nav-dots .dot.active {
+    background: var(--accent);
+    transform: scale(1.4);
+}
+
+/* ===== SLIDE NUMBER ===== */
+.slide-number {
+    position: absolute;
+    bottom: var(--slide-padding);
+    right: var(--slide-padding);
+    font-family: 'Archivo', sans-serif;
+    font-size: var(--small-size);
+    color: rgba(0,0,0,0.2);
+    z-index: 2;
+}
+
+/* ===== ACCENT LINE ===== */
+.accent-line {
+    width: clamp(40px, 8vw, 120px);
+    height: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+/* ===== COMMON CARD STYLES ===== */
+.concept-card {
+    background: var(--white);
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: clamp(0.4rem, 1vw, 0.8rem);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.concept-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 12px rgba(255,51,0,0.08);
+}
+.concept-card .card-title {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    font-size: var(--small-size);
+    margin-bottom: clamp(2px, 0.3vw, 6px);
+}
+.concept-card .card-desc {
+    font-size: var(--small-size);
+    color: var(--secondary);
+    line-height: 1.3;
+}
+.concept-card .card-tools {
+    font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+    color: var(--accent);
+    margin-top: clamp(2px, 0.3vw, 4px);
+}
+
+/* ===== STAT CARD ===== */
+.stat-card {
+    text-align: center;
+    padding: clamp(0.5rem, 1.2vw, 1rem);
+}
+.stat-card .stat-number {
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    color: var(--accent);
+    line-height: 1;
+}
+.stat-card .stat-label {
+    font-size: var(--small-size);
+    color: var(--secondary);
+    margin-top: clamp(2px, 0.4vw, 6px);
+}
+
+/* ===== COLUMNS ===== */
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1rem, 3vw, 3rem);
+}
+@media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+}
+
+/* ===== QUOTE BLOCK ===== */
+.quote-block {
+    border-left: 3px solid var(--accent);
+    padding-left: clamp(0.5rem, 1.5vw, 1.5rem);
+    font-size: var(--body-size);
+    color: var(--secondary);
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* ===== TERMINAL BOX ===== */
+.terminal {
+    background: var(--black);
+    color: #00ff88;
+    font-family: 'Courier New', monospace;
+    font-size: var(--small-size);
+    padding: clamp(0.4rem, 1vw, 0.8rem) clamp(0.5rem, 1.2vw, 1rem);
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.terminal .prompt { color: var(--accent); }
+
+/* ===== FLOW DIAGRAM ===== */
+.flow-row {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.8vw, 0.6rem);
+    flex-wrap: wrap;
+}
+.flow-box {
+    background: var(--white);
+    border: 1.5px solid var(--black);
+    padding: clamp(0.25rem, 0.6vw, 0.5rem) clamp(0.4rem, 1vw, 0.8rem);
+    font-family: 'Archivo', sans-serif;
+    font-size: var(--small-size);
+    font-weight: 800;
+    white-space: nowrap;
+}
+.flow-box.accent { border-color: var(--accent); color: var(--accent); }
+.flow-box small {
+    display: block;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 400;
+    font-size: clamp(0.5rem, 0.7vw, 0.65rem);
+    color: var(--secondary);
+}
+.flow-arrow {
+    font-size: clamp(0.7rem, 1.2vw, 1rem);
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+/* ===== EXAMPLE BOX ===== */
+.example-box {
+    border-left: 3px solid var(--accent);
+    padding: clamp(0.4rem, 1vw, 0.75rem) clamp(0.5rem, 1.2vw, 1rem);
+    background: rgba(255,51,0,0.02);
+}
+.example-box .question {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    font-size: var(--small-size);
+    margin-bottom: clamp(2px, 0.3vw, 4px);
+}
+.example-box .answer {
+    font-size: var(--small-size);
+    color: var(--secondary);
+}
+
+/* ===== CHECK / CROSS ITEMS ===== */
+.check-item, .cross-item {
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(0.3rem, 0.8vw, 0.6rem);
+    font-size: var(--body-size);
+    line-height: 1.4;
+}
+.check-item .icon { color: var(--green); font-weight: 800; flex-shrink: 0; }
+.cross-item .icon { color: var(--accent); font-weight: 800; flex-shrink: 0; }
+
+/* ===== TOP-BORDER CARD ===== */
+.top-card {
+    padding: clamp(0.5rem, 1.2vw, 1rem);
+    background: var(--white);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-top: 3px solid var(--accent);
+}
+.top-card h4 {
+    font-family: 'Archivo', sans-serif;
+    font-size: var(--small-size);
+    margin-bottom: clamp(2px, 0.4vw, 6px);
+}
+.top-card p {
+    font-size: var(--small-size);
+    color: var(--secondary);
+    line-height: 1.3;
+}
+
+/* ===== WORKFLOW STEP ===== */
+.workflow-step {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.8vw, 0.6rem);
+    padding: clamp(0.3rem, 0.6vw, 0.5rem) 0;
+}
+.workflow-step .step-arrow {
+    color: var(--accent);
+    font-size: var(--body-size);
+    flex-shrink: 0;
+}
+.workflow-step .step-name {
+    font-family: 'Archivo', sans-serif;
+    font-size: var(--small-size);
+    font-weight: 800;
+}
+.workflow-step .step-desc {
+    font-size: var(--small-size);
+    color: var(--secondary);
+}
+
+/* ===== SEARCH COMPARISON ===== */
+.search-row {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.8vw, 0.6rem);
+    font-size: var(--small-size);
+    padding: clamp(2px, 0.3vw, 4px) 0;
+}
+.search-row .search-type {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    min-width: clamp(50px, 8vw, 90px);
+}
+.search-row .search-desc {
+    color: var(--secondary);
+    flex: 1;
+}
+.search-row .dots {
+    color: var(--accent);
+    letter-spacing: 2px;
+    font-weight: 800;
+}
+
+/* ===== CATEGORY BOX ===== */
+.category-box {
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: clamp(0.3rem, 0.8vw, 0.6rem);
+}
+.category-box h4 {
+    font-family: 'Archivo', sans-serif;
+    font-size: var(--small-size);
+    color: var(--accent);
+    margin-bottom: clamp(2px, 0.3vw, 4px);
+}
+.category-box p {
+    font-size: var(--small-size);
+    color: var(--secondary);
+}
+
+/* ===== BIG STAT ===== */
+.big-stat {
+    text-align: center;
+    padding: clamp(0.5rem, 1vw, 1rem);
+    background: rgba(255,51,0,0.03);
+    border: 1px solid rgba(255,51,0,0.1);
+}
+.big-stat .number {
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    color: var(--accent);
+}
+.big-stat .label {
+    font-size: var(--small-size);
+    color: var(--secondary);
+}
+
+/* ===== CLOSING SLIDE ===== */
+.closing-quote {
+    font-family: 'Archivo', sans-serif;
+    font-size: clamp(1.1rem, 3vw, 2.2rem);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-align: center;
+    max-width: min(90vw, 800px);
+}
+
+/* ===== GEOMETRIC DECORATIONS ===== */
+.decorative { pointer-events: none; z-index: 0; }
+.geo-circle {
+    position: absolute;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.15;
+}
+.geo-line {
+    position: absolute;
+    background: var(--accent);
+    opacity: 0.12;
+}
+
+/* ===== FOOTER TEXT ===== */
+.slide-footer {
+    font-size: var(--small-size);
+    color: var(--secondary);
+    text-align: center;
+    padding-top: clamp(0.3rem, 0.8vw, 0.6rem);
+}
+
+/* ===== SUBTITLE ===== */
+.subtitle {
+    font-size: var(--body-size);
+    color: var(--secondary);
+    font-weight: 400;
+}
+
+/* ===== COLUMN LIST ===== */
+.col-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.15rem, 0.4vw, 0.35rem);
+}
+.col-list li {
+    font-size: var(--small-size);
+    color: var(--secondary);
+    padding-left: clamp(0.5rem, 1vw, 0.8rem);
+    position: relative;
+    line-height: 1.4;
+}
+.col-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: clamp(5px, 0.6vw, 8px);
+    width: 4px;
+    height: 4px;
+    background: var(--black);
+    border-radius: 50%;
+}
+
+/* ===== PIPELINE STEPS ===== */
+.pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.15rem, 0.4vw, 0.3rem);
+}
+.pipeline-step {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.6vw, 0.5rem);
+    font-size: var(--small-size);
+}
+.pipeline-step .step-num {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    color: var(--accent);
+    min-width: 1.2em;
+}
+
+/* ===== 3x3 GRID ON SMALL SCREENS ===== */
+@media (max-width: 600px) {
+    .grid-3x3 { grid-template-columns: 1fr !important; }
+    .three-col { grid-template-columns: 1fr !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar" style="width: 0%"></div>
+
+<!-- Nav Dots -->
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ==================== SLIDE 1: TITLE ==================== -->
+<section class="slide" id="slide-1">
+    <div class="decorative geo-circle" style="width: clamp(150px,25vw,350px); height: clamp(150px,25vw,350px); top: 8%; right: 8%;"></div>
+    <div class="decorative geo-line" style="width: clamp(80px,15vw,200px); height: 2px; bottom: 25%; right: 15%; transform: rotate(-15deg);"></div>
+    <div class="decorative geo-circle" style="width: clamp(40px,6vw,80px); height: clamp(40px,6vw,80px); bottom: 20%; left: 10%;"></div>
+    <div class="slide-content" style="justify-content: center; gap: var(--content-gap);">
+        <h1 class="reveal" style="max-width: min(90vw, 700px);">From KubeCon to Production</h1>
+        <div class="accent-line reveal"></div>
+        <p class="reveal subtitle" style="font-size: var(--h3-size); max-width: min(90vw, 600px);">The Future of Developer Experience</p>
+        <p class="reveal" style="color: var(--secondary); font-size: var(--body-size);">What I Learned, What I Built, What's Real</p>
+        <p class="reveal" style="font-family: 'Archivo', sans-serif; font-weight: 800; font-size: var(--body-size); margin-top: clamp(0.5rem, 1vw, 1rem);">Anurag Mittal <span style="color: var(--secondary); font-family: 'Nunito',sans-serif; font-weight: 400;">@ Scality</span></p>
+    </div>
+    <span class="slide-number">01 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 2: THE SHIFT ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal">The Shift</h2>
+        <div class="two-col reveal" style="flex: 1; align-content: start;">
+            <div>
+                <h3 style="font-size: var(--body-size); margin-bottom: clamp(0.3rem, 0.8vw, 0.6rem); color: var(--secondary);">Today</h3>
+                <ul class="col-list">
+                    <li>Individual repo clones</li>
+                    <li>Context lost on branch switch</li>
+                    <li>AI starts fresh every time</li>
+                    <li>Knowledge trapped in Confluence</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="font-size: var(--body-size); margin-bottom: clamp(0.3rem, 0.8vw, 0.6rem); color: var(--accent);">Tomorrow</h3>
+                <ul class="col-list">
+                    <li>Shared knowledge base</li>
+                    <li>Context-ready AI</li>
+                    <li>Custom agents</li>
+                    <li>Open ecosystem</li>
+                </ul>
+            </div>
+        </div>
+        <div class="quote-block reveal" style="margin-top: auto;">
+            "The gap isn't 'AI can code vs can't.' It's 'AI builds context every time vs AI is context-ready.'"
+        </div>
+    </div>
+    <span class="slide-number">02 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 3: BUILDING BLOCKS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-content" style="gap: var(--element-gap);">
+        <div class="reveal">
+            <h2>The Building Blocks</h2>
+            <p class="subtitle" style="font-size: var(--small-size);">What the ecosystem looks like &mdash; KubeCon 2025</p>
+        </div>
+        <div class="reveal grid-3x3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(0.3rem, 0.8vw, 0.6rem); flex: 1; align-content: center;">
+            <div class="concept-card">
+                <div class="card-title">Chat Interface</div>
+                <div class="card-desc">Human &harr; AI conversation</div>
+                <div class="card-tools">Chainlit, Open WebUI</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Agent Framework</div>
+                <div class="card-desc">AI that reasons + uses tools</div>
+                <div class="card-tools">LangGraph, CrewAI</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Model Router</div>
+                <div class="card-desc">Switch models without code changes</div>
+                <div class="card-tools">LiteLLM</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">LLM Observability</div>
+                <div class="card-desc">Tokens, cost, latency tracking</div>
+                <div class="card-tools">Langfuse</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Vector Database</div>
+                <div class="card-desc">Semantic code search</div>
+                <div class="card-tools">pgvector, Qdrant</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Knowledge Graph</div>
+                <div class="card-desc">Code relationships + architecture</div>
+                <div class="card-tools">Neo4j</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Agent Protocol</div>
+                <div class="card-desc">Universal AI tool interface</div>
+                <div class="card-tools">MCP</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Workflow Engine</div>
+                <div class="card-desc">Multi-step agent pipelines</div>
+                <div class="card-tools">Argo</div>
+            </div>
+            <div class="concept-card">
+                <div class="card-title">Distributed Tracing</div>
+                <div class="card-desc">Follow requests across services</div>
+                <div class="card-tools">Jaeger</div>
+            </div>
+        </div>
+        <p class="reveal slide-footer">None new individually. The shift is combining them into a platform.</p>
+    </div>
+    <span class="slide-number">03 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 4: PUTTING IT TOGETHER ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-content" style="gap: var(--content-gap); align-items: center;">
+        <div class="reveal" style="text-align: center;">
+            <h2>Putting It Together</h2>
+            <p class="subtitle">A proof of concept</p>
+        </div>
+        <div class="reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: clamp(0.5rem, 1.5vw, 1.2rem); width: 100%; max-width: min(90vw, 900px);">
+            <div class="stat-card">
+                <div class="stat-number" data-target="12">0</div>
+                <div class="stat-label">Services on GKE</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-target="14">0</div>
+                <div class="stat-label">Repos Indexed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-target="11159">0</div>
+                <div class="stat-label">Code Chunks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-target="6389">0</div>
+                <div class="stat-label">Cross-Repo Edges</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-target="15">0</div>
+                <div class="stat-label">AI Tools</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-target="2">0</div>
+                <div class="stat-label">Days to Build</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" data-prefix="$" data-target="7.70" data-decimals="2">$0</div>
+                <div class="stat-label">Cost per Day</div>
+            </div>
+        </div>
+        <p class="reveal slide-footer">Built on GKE Autopilot. Everything open source except the LLM API.</p>
+    </div>
+    <span class="slide-number">04 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 5: ARCHITECTURE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-content" style="gap: var(--element-gap);">
+        <h2 class="reveal">How It Fits Together</h2>
+        <div class="reveal" style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: clamp(0.5rem, 1.2vw, 1rem); max-width: min(95vw, 1000px);">
+            <!-- Row 1: Users to Gateway -->
+            <div class="flow-row" style="justify-content: center;">
+                <div class="flow-box">Users</div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-box accent">Gateway<small>OAuth / Ingress</small></div>
+            </div>
+            <!-- Row 2: Three columns -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(0.3rem, 0.8vw, 0.6rem);">
+                <div style="display: flex; flex-direction: column; gap: clamp(0.2rem, 0.4vw, 0.3rem); align-items: center;">
+                    <div class="flow-box" style="width: 100%; text-align: center;">Chat Interface<small>Chainlit</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box" style="width: 100%; text-align: center;">API<small>FastAPI</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box" style="width: 100%; text-align: center;">Agent Framework<small>LangGraph</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box accent" style="width: 100%; text-align: center;">Model Router<small>LiteLLM &rarr; Claude</small></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: clamp(0.2rem, 0.4vw, 0.3rem); align-items: center;">
+                    <div class="flow-box" style="width: 100%; text-align: center;">Agent Protocol<small>MCP Server</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box" style="width: 100%; text-align: center;">Vector DB<small>pgvector</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box" style="width: 100%; text-align: center;">Knowledge Graph<small>Neo4j</small></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: clamp(0.2rem, 0.4vw, 0.3rem); align-items: center;">
+                    <div class="flow-box" style="width: 100%; text-align: center;">Workflow Engine<small>Argo</small></div>
+                    <span class="flow-arrow">&darr;</span>
+                    <div class="flow-box" style="width: 100%; text-align: center;">Worker Pods</div>
+                    <div style="height: clamp(0.5rem, 1vw, 1rem);"></div>
+                    <div class="flow-box" style="width: 100%; text-align: center; border-style: dashed;">Observability<small>Langfuse + Jaeger</small></div>
+                </div>
+            </div>
+        </div>
+        <p class="reveal slide-footer" style="font-style: italic;">A shared knowledge base that any tool or teammate can query.</p>
+    </div>
+    <span class="slide-number">05 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 6: CUSTOM AGENTS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal">Custom Agents as a Platform</h2>
+        <div class="reveal terminal" style="font-size: var(--small-size);">
+            <span class="prompt">$</span> /workflow feature_development "Add rate limiting"
+        </div>
+        <div class="reveal" style="display: flex; flex-direction: column; gap: clamp(0.2rem, 0.5vw, 0.4rem);">
+            <div class="workflow-step">
+                <span class="step-arrow">&rarr;</span>
+                <span class="step-name">Research Agent</span>
+                <span class="step-desc">&mdash; searches knowledge base</span>
+            </div>
+            <div class="workflow-step">
+                <span class="step-arrow">&rarr;</span>
+                <span class="step-name">Planning Agent</span>
+                <span class="step-desc">&mdash; creates plan from codebase context</span>
+            </div>
+            <div class="workflow-step">
+                <span class="step-arrow">&rarr;</span>
+                <span class="step-name">Implementation Agent</span>
+                <span class="step-desc">&mdash; writes code informed by architecture</span>
+            </div>
+            <div class="workflow-step">
+                <span class="step-arrow">&rarr;</span>
+                <span class="step-name">Review Agent</span>
+                <span class="step-desc">&mdash; checks against real patterns</span>
+            </div>
+        </div>
+        <div class="reveal" style="margin-top: auto;">
+            <p style="font-size: var(--small-size); color: var(--secondary);">Each agent = own container. Shared knowledge base. A platform, not a laptop tool.</p>
+        </div>
+    </div>
+    <span class="slide-number">06 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 7: SHARED KNOWLEDGE BASE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-content" style="gap: var(--element-gap);">
+        <h2 class="reveal">From Individual Context to Shared Understanding</h2>
+        <div class="two-col reveal" style="flex: 1; align-content: center;">
+            <div>
+                <h3 style="font-size: var(--body-size); margin-bottom: clamp(0.3rem, 0.8vw, 0.6rem);">Pipeline</h3>
+                <div class="pipeline">
+                    <div class="pipeline-step"><span class="step-num">1</span> Parse source code into chunks</div>
+                    <div class="pipeline-step"><span class="step-num">2</span> Embed with Vertex AI</div>
+                    <div class="pipeline-step"><span class="step-num">3</span> Connect cross-repo references</div>
+                    <div class="pipeline-step"><span class="step-num">4</span> Summarize with LLM</div>
+                    <div class="pipeline-step"><span class="step-num">5</span> Serve via MCP protocol</div>
+                </div>
+            </div>
+            <div>
+                <h3 style="font-size: var(--body-size); margin-bottom: clamp(0.3rem, 0.8vw, 0.6rem);">Search Comparison</h3>
+                <div style="display: flex; flex-direction: column; gap: clamp(0.15rem, 0.4vw, 0.3rem);">
+                    <div class="search-row">
+                        <span class="search-type">Keyword</span>
+                        <span class="search-desc">grep &mdash; finds text</span>
+                        <span class="dots">&bull;&#9675;&#9675;</span>
+                    </div>
+                    <div class="search-row">
+                        <span class="search-type">Semantic</span>
+                        <span class="search-desc">vectors &mdash; finds similar code</span>
+                        <span class="dots">&bull;&bull;&#9675;</span>
+                    </div>
+                    <div class="search-row">
+                        <span class="search-type">Graph</span>
+                        <span class="search-desc">knowledge graph &mdash; finds connected code</span>
+                        <span class="dots">&bull;&bull;&bull;</span>
+                    </div>
+                    <div class="search-row">
+                        <span class="search-type" style="color: var(--accent);">Hybrid</span>
+                        <span class="search-desc">all + BM25</span>
+                        <span class="dots">&bull;&bull;&bull;&bull;</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="reveal slide-footer">Ask "how does auth work end-to-end?" &mdash; answers from 4 repos.</p>
+    </div>
+    <span class="slide-number">07 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 8: AGENT PROTOCOL ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <div class="reveal">
+            <h2>Agent-First Development</h2>
+            <p class="subtitle">One protocol. Every tool. Every teammate.</p>
+        </div>
+        <div class="reveal flow-row" style="justify-content: center; flex-wrap: wrap;">
+            <div class="flow-box">Claude Code</div>
+            <div class="flow-box">Cursor</div>
+            <div class="flow-box">Any AI Tool</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-box accent">MCP Server</div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-box">Knowledge Base</div>
+        </div>
+        <div class="reveal three-col" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(0.3rem, 0.8vw, 0.6rem);">
+            <div class="category-box">
+                <h4>Search</h4>
+                <p>5 tools &mdash; semantic, graph, topology</p>
+            </div>
+            <div class="category-box">
+                <h4>Indexing</h4>
+                <p>5 tools &mdash; parse, embed, connect</p>
+            </div>
+            <div class="category-box">
+                <h4>Topology</h4>
+                <p>3 tools &mdash; services, deps, map</p>
+            </div>
+        </div>
+        <div class="reveal terminal">
+            <span class="prompt">$</span> claude mcp add --transport http hopocalypse http://hopocalypse.34.53.165.155.nip.io/mcp
+        </div>
+    </div>
+    <span class="slide-number">08 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 9: OBSERVABILITY ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal">See Everything. Trust Nothing.</h2>
+        <div class="reveal three-col" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(0.5rem, 1.5vw, 1.2rem); flex: 1; align-content: center;">
+            <div class="top-card">
+                <h4>LLM Traces</h4>
+                <p>Every AI call &mdash; tokens, cost, latency, prompt/completion. Full audit trail.</p>
+            </div>
+            <div class="top-card">
+                <h4>Distributed Traces</h4>
+                <p>Follow requests across agent &rarr; API &rarr; model &rarr; response. End-to-end visibility.</p>
+            </div>
+            <div class="top-card">
+                <h4>Dashboards</h4>
+                <p>Workflow success rates, cost per query, performance metrics. Real-time.</p>
+            </div>
+        </div>
+        <p class="reveal slide-footer" style="font-style: italic;">"When AI gets it wrong, you see exactly where and why."</p>
+    </div>
+    <span class="slide-number">09 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 10: REAL TEST ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal">Real Questions. Real Answers.</h2>
+        <div class="reveal" style="display: flex; flex-direction: column; gap: clamp(0.5rem, 1.2vw, 1rem); flex: 1; justify-content: center;">
+            <div class="example-box">
+                <div class="question">"How does CRR replay work?"</div>
+                <div class="answer">Found across 4 repos, mapped Kafka backoff retry mechanism end-to-end.</div>
+            </div>
+            <div class="example-box">
+                <div class="question">"Notification delivery guarantee?"</div>
+                <div class="answer">Found at-least-once semantics in shared library, traced through 3 services.</div>
+            </div>
+            <div class="example-box">
+                <div class="question">"Cold storage transition?"</div>
+                <div class="answer">Mapped 5 phases across 4 repos &mdash; lifecycle rules through archive restore.</div>
+            </div>
+        </div>
+        <p class="reveal slide-footer" style="font-style: italic;">Real questions from our codebase, answered by the shared knowledge base.</p>
+    </div>
+    <span class="slide-number">10 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 11: WHAT WORKS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal" style="color: var(--green);">What Works</h2>
+        <div class="reveal" style="display: flex; flex-direction: column; gap: clamp(0.4rem, 1vw, 0.8rem); flex: 1; justify-content: center; max-width: min(90vw, 750px);">
+            <div class="check-item">
+                <span class="icon">&#10003;</span>
+                <span><strong>Semantic search:</strong> 100ms, scores &gt; 0.75 = 95% accurate</span>
+            </div>
+            <div class="check-item">
+                <span class="icon">&#10003;</span>
+                <span><strong>Service topology:</strong> 14 services mapped automatically</span>
+            </div>
+            <div class="check-item">
+                <span class="icon">&#10003;</span>
+                <span><strong>Cross-repo connections:</strong> 6,389 edges, &lt;3% false positives</span>
+            </div>
+            <div class="check-item">
+                <span class="icon">&#10003;</span>
+                <span><strong>Full observability:</strong> every AI call traced end-to-end</span>
+            </div>
+            <div class="check-item">
+                <span class="icon">&#10003;</span>
+                <span><strong>Standard protocol:</strong> any AI tool can connect via MCP</span>
+            </div>
+        </div>
+    </div>
+    <span class="slide-number">11 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 12: WHAT DOESN'T WORK ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-content" style="gap: var(--content-gap);">
+        <h2 class="reveal" style="color: var(--accent);">What Doesn't Work</h2>
+        <div class="reveal" style="display: flex; flex-direction: column; gap: clamp(0.3rem, 0.8vw, 0.6rem); max-width: min(90vw, 750px);">
+            <div class="cross-item">
+                <span class="icon">&#10005;</span>
+                <span>Code truncated to 15 lines &mdash; missed logic past line 20</span>
+            </div>
+            <div class="cross-item">
+                <span class="icon">&#10005;</span>
+                <span>No flow tracing &mdash; 15 searches to reconstruct one pipeline</span>
+            </div>
+            <div class="cross-item">
+                <span class="icon">&#10005;</span>
+                <span>Test code scores higher than implementation (0.80 vs 0.69)</span>
+            </div>
+            <div class="cross-item">
+                <span class="icon">&#10005;</span>
+                <span>Versioning: multiple branches = multiple knowledge bases?</span>
+            </div>
+            <div class="cross-item">
+                <span class="icon">&#10005;</span>
+                <span>50% result duplication across queries</span>
+            </div>
+        </div>
+        <div class="reveal big-stat">
+            <div class="number">~4&ndash;5</div>
+            <div class="label">queries per meaningful insight</div>
+        </div>
+    </div>
+    <span class="slide-number">12 / 13</span>
+</section>
+
+<!-- ==================== SLIDE 13: CLOSING ==================== -->
+<section class="slide" id="slide-13">
+    <div class="decorative geo-circle" style="width: clamp(100px,18vw,250px); height: clamp(100px,18vw,250px); top: 10%; left: 5%;"></div>
+    <div class="decorative geo-line" style="width: clamp(60px,12vw,160px); height: 2px; top: 20%; right: 10%; transform: rotate(10deg);"></div>
+    <div class="slide-content" style="align-items: center; justify-content: center; gap: var(--content-gap); text-align: center;">
+        <div class="closing-quote reveal">
+            This is what developer experience looks like when AI understands your system.
+        </div>
+        <p class="reveal subtitle" style="max-width: min(85vw, 600px);">Not individual context on individual laptops. A shared knowledge base that grows with the codebase.</p>
+        <div class="reveal terminal" style="max-width: min(90vw, 700px); width: 100%;">
+            <span class="prompt">$</span> claude mcp add --transport http hopocalypse http://hopocalypse.34.53.165.155.nip.io/mcp
+        </div>
+        <p class="reveal" style="font-size: var(--body-size); color: var(--secondary);">Try it. Break it. Tell me what's missing.</p>
+        <div class="reveal" style="margin-top: clamp(0.5rem, 1vw, 1rem);">
+            <div class="accent-line" style="margin: 0 auto;"></div>
+            <p style="font-family: 'Archivo', sans-serif; font-weight: 800; font-size: var(--body-size); margin-top: clamp(0.3rem, 0.6vw, 0.5rem);">Anurag Mittal <span style="color: var(--secondary); font-family: 'Nunito',sans-serif; font-weight: 400;">| Scality</span></p>
+        </div>
+    </div>
+    <span class="slide-number">13 / 13</span>
+</section>
+
+<script>
+class SlidePresentation {
+    constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.totalSlides = this.slides.length;
+        this.currentSlide = 0;
+        this.touchStartY = 0;
+        this.touchStartX = 0;
+
+        this.createNavDots();
+        this.setupIntersectionObserver();
+        this.setupKeyboardNav();
+        this.setupTouchSupport();
+        this.updateProgress(0);
+    }
+
+    createNavDots() {
+        const nav = document.getElementById('navDots');
+        for (let i = 0; i < this.totalSlides; i++) {
+            const dot = document.createElement('button');
+            dot.className = 'dot' + (i === 0 ? ' active' : '');
+            dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+            dot.addEventListener('click', () => this.goToSlide(i));
+            nav.appendChild(dot);
+        }
+        this.dots = nav.querySelectorAll('.dot');
+    }
+
+    setupIntersectionObserver() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    const index = Array.from(this.slides).indexOf(entry.target);
+                    this.currentSlide = index;
+                    this.updateProgress(index);
+                    this.updateDots(index);
+                    if (index === 3) {
+                        this.animateCounters(entry.target);
+                    }
+                }
+            });
+        }, { threshold: 0.5 });
+
+        this.slides.forEach(slide => observer.observe(slide));
+    }
+
+    setupKeyboardNav() {
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowDown':
+                case 'ArrowRight':
+                case ' ':
+                case 'PageDown':
+                    e.preventDefault();
+                    this.nextSlide();
+                    break;
+                case 'ArrowUp':
+                case 'ArrowLeft':
+                case 'PageUp':
+                    e.preventDefault();
+                    this.prevSlide();
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    this.goToSlide(0);
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    this.goToSlide(this.totalSlides - 1);
+                    break;
+            }
+        });
+    }
+
+    setupTouchSupport() {
+        let touchStartY = 0;
+        let touchStartX = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            const touchEndY = e.changedTouches[0].clientY;
+            const touchEndX = e.changedTouches[0].clientX;
+            const diffY = touchStartY - touchEndY;
+            const diffX = touchStartX - touchEndX;
+
+            if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
+                if (diffY > 0) {
+                    this.nextSlide();
+                } else {
+                    this.prevSlide();
+                }
+            }
+        }, { passive: true });
+    }
+
+    goToSlide(index) {
+        if (index >= 0 && index < this.totalSlides) {
+            this.slides[index].scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    nextSlide() {
+        if (this.currentSlide < this.totalSlides - 1) {
+            this.goToSlide(this.currentSlide + 1);
+        }
+    }
+
+    prevSlide() {
+        if (this.currentSlide > 0) {
+            this.goToSlide(this.currentSlide - 1);
+        }
+    }
+
+    updateProgress(index) {
+        const progress = ((index + 1) / this.totalSlides) * 100;
+        document.getElementById('progressBar').style.width = progress + '%';
+    }
+
+    updateDots(index) {
+        this.dots.forEach((dot, i) => {
+            dot.classList.toggle('active', i === index);
+        });
+    }
+
+    animateCounters(slide) {
+        const counters = slide.querySelectorAll('.stat-number[data-target]');
+        counters.forEach(counter => {
+            if (counter.dataset.animated) return;
+            counter.dataset.animated = 'true';
+
+            const target = parseFloat(counter.dataset.target);
+            const decimals = parseInt(counter.dataset.decimals) || 0;
+            const prefix = counter.dataset.prefix || '';
+            const duration = 1500;
+            const startTime = performance.now();
+
+            const animate = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = eased * target;
+
+                if (decimals > 0) {
+                    counter.textContent = prefix + current.toFixed(decimals);
+                } else {
+                    counter.textContent = prefix + Math.floor(current).toLocaleString();
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    if (decimals > 0) {
+                        counter.textContent = prefix + target.toFixed(decimals);
+                    } else {
+                        counter.textContent = prefix + target.toLocaleString();
+                    }
+                }
+            };
+
+            requestAnimationFrame(animate);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new SlidePresentation();
+});
+</script>
+</body>
+</html>
