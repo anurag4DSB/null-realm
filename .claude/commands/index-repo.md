@@ -21,7 +21,7 @@ Prerequisites (local Kind):
 
 Run the indexer:
 ```bash
-DATABASE_URL=postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:15432/nullrealm \
+DATABASE_URL=postgresql+asyncpg://nullrealm:<db-password>@localhost:15432/nullrealm \
 NEO4J_URI=bolt://localhost:7687 \
 LITELLM_URL=http://localhost:4000/v1 \
 uv run python -c "

@@ -1,5 +1,6 @@
 """Service accounts for GKE workloads and Cloud Build."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 
 def create_service_accounts(artifact_registry):
@@ -8,13 +9,13 @@ def create_service_accounts(artifact_registry):
         "null-realm-gke-sa",
         account_id="null-realm-gke",
         display_name="Null Realm GKE Workload SA",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     # Allow GKE SA to pull from Artifact Registry
     gcp.artifactregistry.RepositoryIamMember(
         "gke-sa-ar-reader",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         location="europe-west1",
         repository=artifact_registry.repository_id,
         role="roles/artifactregistry.reader",
@@ -26,11 +27,11 @@ def create_service_accounts(artifact_registry):
         "null-realm-cloudbuild-sa",
         account_id="null-realm-cloudbuild",
         display_name="Null Realm Cloud Build SA",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     # Cloud Build SA permissions
-    project_id = "YOUR_GCP_PROJECT"
+    project_id = GCP_PROJECT
     for role in [
         "roles/container.developer",
         "roles/artifactregistry.writer",

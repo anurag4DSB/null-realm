@@ -29,7 +29,7 @@ EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:5432/nullrealm",
+    "postgresql+asyncpg://nullrealm:nullrealm@localhost:5432/nullrealm",
 )
 
 metadata_obj = MetaData()

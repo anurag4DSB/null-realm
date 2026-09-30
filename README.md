@@ -10,6 +10,22 @@ The lab has three parts:
 
 Langfuse, Jaeger, Prometheus, and Grafana trace and measure each request, model call, and tool call.
 
+## Status and access
+
+The live deployment is internal only. The public demo URLs are not available.
+
+You cannot run this project from this repository alone. It needs these private resources:
+
+- A GCP project with GKE Autopilot, Cloud SQL, Artifact Registry, and Secret Manager.
+- A Google OAuth client and a list of allowed emails.
+- API keys for Anthropic and Google Gemini.
+- The Kubernetes secrets that the manifests in `infra/k8s/` refer to.
+- An indexed knowledge graph in pgvector and Neo4j.
+
+The repository uses placeholders such as `YOUR_GCP_PROJECT` and `INGRESS_IP` in place of the real values. The commit history was rewritten to remove internal configuration and infrastructure details. The commits and their messages stay the same.
+
+For access or a demo, contact the repository owner, [@anurag4DSB](https://github.com/anurag4DSB).
+
 ## Stack
 
 | Area | Tools |
@@ -35,9 +51,9 @@ Langfuse, Jaeger, Prometheus, and Grafana trace and measure each request, model 
 | `.planning/` | Project brief, roadmap, phase plans, and costs |
 | `tasks.py` | `invoke` tasks for build, deploy, and cloud operations |
 
-## Quick start
+## Local development
 
-You need Python 3.12 or later and [uv](https://docs.astral.sh/uv/). For the Kind path, you also need Docker, `kind`, `kubectl`, and `helm`.
+These steps are for the owner and need the private resources in [Status and access](#status-and-access). You need Python 3.12 or later and [uv](https://docs.astral.sh/uv/). For the Kind path, you also need Docker, `kind`, `kubectl`, and `helm`.
 
 1. Install the dependencies:
 

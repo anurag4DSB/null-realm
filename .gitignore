@@ -210,3 +210,9 @@ __marimo__/
 .secrets.local.md
 .chainlit/
 chainlit.md
+
+# Internal notes kept locally
+docs/SESSION-2026-04-03.md
+docs/presentation/
+.planning/phases/05-context-engineering/05-05-PLAN.md
+.planning/phases/05-context-engineering/05-06-PLAN.md

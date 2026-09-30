@@ -33,7 +33,7 @@ def _get_engine():
     if _engine is None:
         database_url = os.getenv(
             "DATABASE_URL",
-            "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:5432/nullrealm",
+            "postgresql+asyncpg://nullrealm:nullrealm@localhost:5432/nullrealm",
         )
         _engine = create_async_engine(database_url, echo=False)
     return _engine

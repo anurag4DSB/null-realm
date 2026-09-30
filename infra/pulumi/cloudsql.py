@@ -1,6 +1,7 @@
 """Cloud SQL PostgreSQL 16 with pgvector."""
 import pulumi
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 _config = pulumi.Config()
 
@@ -13,7 +14,7 @@ def create_cloud_sql(network, vpc_connection):
         name="null-realm-db",
         database_version="POSTGRES_16",
         region="europe-west1",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         settings=gcp.sql.DatabaseInstanceSettingsArgs(
             tier="db-g1-small",
             disk_size=100,
@@ -40,7 +41,7 @@ def create_cloud_sql(network, vpc_connection):
         "null-realm-database",
         name="nullrealm",
         instance=db_instance.name,
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     # Create the user
@@ -49,7 +50,7 @@ def create_cloud_sql(network, vpc_connection):
         name="nullrealm",
         instance=db_instance.name,
         password=_config.require_secret("db_password"),
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     return db_instance

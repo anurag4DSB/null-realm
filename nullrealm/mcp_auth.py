@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
-MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET", "REDACTED_SECRET")
+MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET")
 REDIRECT_URI = os.getenv(
     "MCP_REDIRECT_URI",
     "http://hopocalypse.INGRESS_IP.nip.io/oauth/callback",
@@ -64,6 +64,16 @@ async def get_user_email(access_token: str) -> str:
         return resp.json()["email"]
 
 
+def _jwt_secret() -> str:
+    """Return the MCP JWT signing secret, failing loudly if it is not configured."""
+    if not MCP_JWT_SECRET:
+        raise RuntimeError(
+            "MCP_JWT_SECRET is not set. Configure it (e.g. from a Kubernetes Secret) "
+            "before issuing or verifying MCP tokens."
+        )
+    return MCP_JWT_SECRET
+
+
 def create_mcp_token(email: str) -> str:
     """Issue a 24-hour MCP JWT for *email*."""
     return jwt.encode(
@@ -72,11 +82,11 @@ def create_mcp_token(email: str) -> str:
             "exp": datetime.now(UTC) + timedelta(hours=24),
             "iss": "null-realm-mcp",
         },
-        MCP_JWT_SECRET,
+        _jwt_secret(),
         algorithm="HS256",
     )
 
 
 def verify_mcp_token(token: str) -> dict:
     """Verify and decode an MCP JWT. Raises jwt.InvalidTokenError on failure."""
-    return jwt.decode(token, MCP_JWT_SECRET, algorithms=["HS256"])
+    return jwt.decode(token, _jwt_secret(), algorithms=["HS256"])

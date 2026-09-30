@@ -1,12 +1,13 @@
 """Cloud Build trigger for CI/CD."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 
 def create_cloudbuild_trigger(github_owner: str, github_repo: str, sa_cloudbuild):
     """Create a Cloud Build trigger that fires on push to main."""
     trigger = gcp.cloudbuild.Trigger(
         "null-realm-main-trigger",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         name="null-realm-push-to-main",
         description="Build and deploy on push to main",
         github=gcp.cloudbuild.TriggerGithubArgs(

@@ -2,5 +2,4 @@ encryptionsalt: v1:9cafcv3mgck=:v1:uHzgf+jzeECbAh5+:Zv886unIsmJE8QNw/44dxPA2q7lu
 config:
   gcp:project: YOUR_GCP_PROJECT
   gcp:region: europe-west1
-  null-realm:db_password:
-    secure: REDACTED
+  # Set with: pulumi config set --secret null-realm:db_password <password>

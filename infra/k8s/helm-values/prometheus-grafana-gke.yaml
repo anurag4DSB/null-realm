@@ -1,5 +1,11 @@
 grafana:
-  adminPassword: "admin"
+  adminPassword: "REPLACE_WITH_GRAFANA_ADMIN_PASSWORD"
+  # Used by grafana-datasources.yaml ($__env{LANGFUSE_DB_PASSWORD})
+  envValueFrom:
+    LANGFUSE_DB_PASSWORD:
+      secretKeyRef:
+        name: null-realm-db
+        key: postgres-password
   service:
     type: ClusterIP   # Traefik handles ingress
   deploymentStrategy:

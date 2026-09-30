@@ -4,9 +4,9 @@ steps:
     args:
       - build
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/api:$COMMIT_SHA
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/api:$COMMIT_SHA
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/api:latest
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/api:latest
       - -f
       - Dockerfile.api
       - .
@@ -17,9 +17,9 @@ steps:
     args:
       - build
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/worker:$COMMIT_SHA
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/worker:$COMMIT_SHA
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/worker:latest
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/worker:latest
       - -f
       - Dockerfile.worker
       - .
@@ -30,9 +30,9 @@ steps:
     args:
       - build
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/ui:$COMMIT_SHA
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/ui:$COMMIT_SHA
       - -t
-      - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/ui:latest
+      - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/ui:latest
       - -f
       - Dockerfile.ui
       - .
@@ -40,15 +40,15 @@ steps:
 
   # Push all images
   - name: 'gcr.io/cloud-builders/docker'
-    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/api']
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/api']
     waitFor: [build-api]
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/worker']
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/worker']
     waitFor: [build-worker]
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/ui']
+    args: [push, '--all-tags', 'europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/ui']
     waitFor: [build-ui]
 
   # Get GKE credentials
@@ -61,7 +61,7 @@ steps:
       - --region
       - europe-west1
       - --project
-      - YOUR_GCP_PROJECT
+      - $PROJECT_ID
     id: get-credentials
     waitFor: ['-']  # run in parallel with builds
 
@@ -72,9 +72,9 @@ steps:
     waitFor: [get-credentials]
 
 images:
-  - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/api:$COMMIT_SHA
-  - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/worker:$COMMIT_SHA
-  - europe-west1-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm/ui:$COMMIT_SHA
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/api:$COMMIT_SHA
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/worker:$COMMIT_SHA
+  - europe-west1-docker.pkg.dev/$PROJECT_ID/null-realm/ui:$COMMIT_SHA
 
 options:
   logging: CLOUD_LOGGING_ONLY

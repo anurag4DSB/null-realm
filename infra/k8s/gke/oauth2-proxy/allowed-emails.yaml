@@ -1,0 +1,10 @@
+# Google accounts allowed through oauth2-proxy (one email per line).
+# Replace the placeholder before applying.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-proxy-allowed-emails
+  namespace: null-realm
+data:
+  emails.txt: |
+    you@example.com

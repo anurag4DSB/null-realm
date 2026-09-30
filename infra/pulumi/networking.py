@@ -1,5 +1,6 @@
 """VPC and subnet for GKE + Cloud SQL."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 LABELS = {"user": "anurag", "project": "null-realm"}
 
@@ -9,7 +10,7 @@ def create_network():
         "null-realm-vpc",
         name="null-realm-vpc",
         auto_create_subnetworks=False,
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     subnet = gcp.compute.Subnetwork(
@@ -18,7 +19,7 @@ def create_network():
         ip_cidr_range="10.0.0.0/20",
         region="europe-west1",
         network=network.id,
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         secondary_ip_ranges=[
             gcp.compute.SubnetworkSecondaryIpRangeArgs(
                 range_name="pods",
@@ -39,7 +40,7 @@ def create_network():
         address_type="INTERNAL",
         prefix_length=16,
         network=network.id,
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         labels=LABELS,
     )
 
@@ -56,7 +57,7 @@ def create_network():
         name="null-realm-router",
         network=network.id,
         region="europe-west1",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
     )
 
     gcp.compute.RouterNat(
@@ -64,7 +65,7 @@ def create_network():
         name="null-realm-nat",
         router=router.name,
         region="europe-west1",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         nat_ip_allocate_option="AUTO_ONLY",
         source_subnetwork_ip_ranges_to_nat="ALL_SUBNETWORKS_ALL_IP_RANGES",
         log_config=gcp.compute.RouterNatLogConfigArgs(

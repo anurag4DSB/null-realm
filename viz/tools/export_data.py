@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:5432/nullrealm",
+    "postgresql+asyncpg://nullrealm:nullrealm@localhost:5432/nullrealm",
 )
 
 

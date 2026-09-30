@@ -41,7 +41,10 @@ spec:
           - name: REGISTRY_URL
             value: "http://api-server.null-realm.svc.cluster.local:8000"
           - name: DATABASE_URL
-            value: "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
+            valueFrom:
+              secretKeyRef:
+                name: null-realm-db
+                key: database-url
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: "http://jaeger.null-realm.svc.cluster.local:4317"
         resources:

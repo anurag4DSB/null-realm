@@ -1,5 +1,6 @@
 """GKE Autopilot cluster."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 LABELS = {"user": "anurag", "project": "null-realm"}
 
@@ -9,7 +10,7 @@ def create_gke_cluster(network, subnet, sa_gke):
         "null-realm-gke",
         name="null-realm",
         location="europe-west1",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         enable_autopilot=True,
         network=network.name,
         subnetwork=subnet.name,

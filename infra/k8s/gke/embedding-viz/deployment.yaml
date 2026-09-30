@@ -22,13 +22,19 @@ spec:
             - containerPort: 8502
           env:
             - name: DATABASE_URL
-              value: "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
+              valueFrom:
+                secretKeyRef:
+                  name: null-realm-db
+                  key: database-url
             - name: NEO4J_URI
               value: "bolt://neo4j.null-realm.svc.cluster.local:7687"
             - name: NEO4J_USER
               value: "neo4j"
             - name: NEO4J_PASSWORD
-              value: "REDACTED_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: null-realm-db
+                  key: neo4j-password
           resources:
             requests:
               cpu: 250m

@@ -15,12 +15,12 @@ st.set_page_config(page_title="Null Realm Embeddings", layout="wide", page_icon=
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:5432/nullrealm",
+    "postgresql+asyncpg://nullrealm:nullrealm@localhost:5432/nullrealm",
 )
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j.null-realm.svc.cluster.local:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "REDACTED_PASSWORD")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 REPO_INDEX_PATH = Path(os.getenv("REPO_INDEX_PATH", "repo-indexes/null-realm/REPO_INDEX.md"))
 
@@ -91,6 +91,8 @@ def load_data():
 def _get_neo4j_driver():
     """Get or create a cached Neo4j sync driver."""
     if "neo4j_driver" not in st.session_state:
+        if not NEO4J_PASSWORD:
+            raise RuntimeError("NEO4J_PASSWORD is not set; cannot connect to Neo4j.")
         st.session_state.neo4j_driver = GraphDatabase.driver(
             NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD)
         )

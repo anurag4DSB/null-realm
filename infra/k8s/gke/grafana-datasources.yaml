@@ -22,7 +22,7 @@ data:
         user: nullrealm
         editable: true
         secureJsonData:
-          password: REDACTED_PASSWORD
+          password: $__env{LANGFUSE_DB_PASSWORD}
         jsonData:
           database: nullrealm
           sslmode: disable

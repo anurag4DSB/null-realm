@@ -1,12 +1,14 @@
 """Null Realm — GCP infrastructure via Pulumi Python."""
+from secrets import create_secrets
+
 import pulumi
+from cloudbuild import create_cloudbuild_trigger
+from cloudsql import create_cloud_sql
+from gcp_project import GCP_PROJECT
+from gke import create_gke_cluster
+from iam import create_service_accounts
 from networking import create_network
 from registry import create_artifact_registry
-from iam import create_service_accounts
-from secrets import create_secrets
-from gke import create_gke_cluster
-from cloudsql import create_cloud_sql
-from cloudbuild import create_cloudbuild_trigger
 
 # Networking (VPC + subnets + private services connection) — must come first
 network, subnet, vpc_connection = create_network()
@@ -52,7 +54,7 @@ else:
 pulumi.export("gke_cluster_name", gke_cluster.name)
 pulumi.export("gke_endpoint", gke_cluster.endpoint)
 pulumi.export("artifact_registry_url", artifact_registry.location.apply(
-    lambda loc: f"{loc}-docker.pkg.dev/YOUR_GCP_PROJECT/null-realm"
+    lambda loc: f"{loc}-docker.pkg.dev/{GCP_PROJECT}/null-realm"
 ))
 pulumi.export("db_instance_name", db_instance.name)
 pulumi.export("db_connection_name", db_instance.connection_name)

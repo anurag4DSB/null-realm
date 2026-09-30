@@ -23,7 +23,10 @@ spec:
             - name: POSTGRES_USER
               value: nullrealm
             - name: POSTGRES_PASSWORD
-              value: REDACTED_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: null-realm-db
+                  key: postgres-password
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           ports:

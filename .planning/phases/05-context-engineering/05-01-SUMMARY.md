@@ -66,8 +66,8 @@ repo-indexes/null-realm/REPO_INDEX.md              # Generated repo summary
 
 1. **Vertex AI needed Workload Identity** -- Direct `google-cloud-aiplatform` SDK calls failed from app pods because only the LiteLLM ServiceAccount has the Workload Identity binding for Vertex AI. Routed all embeddings through LiteLLM `/v1/embeddings` instead of calling Vertex AI directly. This became ADR-010.
 2. **sentence-transformers fallback = 500MB download** -- The planned local fallback (`all-MiniLM-L6-v2`) downloads 500MB of model weights on first run. Not viable for container images. Local dev also routes through LiteLLM (which can use the Vertex AI fallback or a local model).
-3. **Neo4j auth=none** -- Plan called for `neo4j/REDACTED_PASSWORD` credentials. Simplified to `NEO4J_AUTH=none` since Neo4j is cluster-internal only. No external access to bolt port except via explicit port-forward or LoadBalancer.
-4. **Neo4j Bolt exposed via LoadBalancer** -- Neo4j Browser works at the HTTP subdomain, but Bolt protocol (7687) needed for the Python driver from MCP server. Exposed Bolt via a separate LoadBalancer service at `NEO4J_EXTERNAL_IP:7687`.
+3. **Neo4j auth=none** -- Plan called for password auth. Simplified to `NEO4J_AUTH=none` since Neo4j is cluster-internal only. No external access to bolt port except via explicit port-forward.
+4. **Neo4j Bolt exposed via LoadBalancer** -- Neo4j Browser works at the HTTP subdomain, but Bolt protocol (7687) needed for the Python driver from MCP server. Bolt was temporarily exposed via a LoadBalancer; it is now ClusterIP only (use `kubectl port-forward` for local access).
 5. **5 visualization tools instead of 4** -- Plan listed 4 viz tools (Atlas, TensorBoard, Spotlight, Neo4j Browser). Added Streamlit as the primary explorer with the review interface, making 5 total.
 
 ## Verification Results

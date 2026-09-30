@@ -38,27 +38,27 @@ async def main():
         await update_repo_status(args.name, "indexing")
 
         if args.mode == "ansible":
-            # AnsibleRepo mode: text chunking of config templates, docs, playbooks
+            # Ansible mode: text chunking of config templates, docs, playbooks
             from pathlib import Path
             from nullrealm.context.repo_manager import clone_or_pull
-            from nullrealm.context.service_analyzer import index_ansible, ServiceAnalysis
+            from nullrealm.context.service_analyzer import index_ansible_repo, ServiceAnalysis
             from nullrealm.context.embeddings import embed_texts
             from nullrealm.context.pgvector_store import PgVectorStore
 
             repo_dir = await clone_or_pull(args.url, args.branch, args.name, auth_type=args.auth_type)
-            chunks, connections = index_ansible(Path(repo_dir))
+            chunks, connections = index_ansible_repo(Path(repo_dir))
 
             if chunks:
                 # Embed and store in pgvector
                 texts = [c.text for c in chunks]
-                logger.info("Embedding %d AnsibleRepo chunks...", len(texts))
+                logger.info("Embedding %d Ansible repo chunks...", len(texts))
                 embeddings = embed_texts(texts)
 
                 store = PgVectorStore()
                 await store.init()
                 await store.store_embeddings(chunks, embeddings, repo_name=args.name)
                 await store.close()
-                logger.info("Stored %d AnsibleRepo chunks in pgvector", len(chunks))
+                logger.info("Stored %d Ansible repo chunks in pgvector", len(chunks))
 
             # Store service topology in Neo4j
             neo4j_uri = os.getenv("NEO4J_URI")
@@ -74,10 +74,10 @@ async def main():
                         topics=[],
                     )
                     svc_stats = await neo4j.store_service_graph(analysis)
-                    logger.info("AnsibleRepo service graph: %s", svc_stats)
+                    logger.info("Ansible repo service graph: %s", svc_stats)
                     await neo4j.close()
                 except Exception:
-                    logger.warning("AnsibleRepo service graph storage failed", exc_info=True)
+                    logger.warning("Ansible repo service graph storage failed", exc_info=True)
 
             result = {
                 "chunks": len(chunks),

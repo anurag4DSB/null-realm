@@ -22,7 +22,10 @@ spec:
             - containerPort: 8080
           env:
             - name: DATABASE_URL
-              value: "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
+              valueFrom:
+                secretKeyRef:
+                  name: null-realm-db
+                  key: database-url
           resources:
             requests:
               cpu: 250m

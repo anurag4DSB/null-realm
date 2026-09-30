@@ -22,13 +22,22 @@ spec:
             - containerPort: 3000
           env:
             - name: DATABASE_URL
-              value: "postgresql://nullrealm:REDACTED_PASSWORD@CLOUD_SQL_PRIVATE_IP:5432/nullrealm"
+              valueFrom:
+                secretKeyRef:
+                  name: null-realm-db
+                  key: langfuse-database-url
             - name: NEXTAUTH_URL
               value: "http://INGRESS_IP.nip.io"
             - name: NEXTAUTH_SECRET
-              value: "REDACTED_SECRET"
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: nextauth-secret
             - name: SALT
-              value: "REDACTED_SECRET"
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: salt
             - name: TELEMETRY_ENABLED
               value: "false"
             - name: PORT

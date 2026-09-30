@@ -28,8 +28,9 @@ Add to your Claude Code MCP settings (`.claude/settings.json` or project-level `
       "args": ["run", "python", "-m", "nullrealm.mcp_server", "--stdio"],
       "cwd": "/path/to/null-realm",
       "env": {
-        "DATABASE_URL": "postgresql+asyncpg://nullrealm:REDACTED_PASSWORD@localhost:15432/nullrealm",
-        "NEO4J_URI": "bolt://localhost:7687"
+        "DATABASE_URL": "postgresql+asyncpg://nullrealm:<db-password>@localhost:15432/nullrealm",
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_PASSWORD": "<neo4j-password>"
       }
     }
   }

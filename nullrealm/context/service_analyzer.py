@@ -25,7 +25,7 @@ class ServiceConnection:
     """A directed service-to-service dependency."""
 
     source: str  # e.g. "cloudserver"
-    target: str  # e.g. "iam-service"
+    target: str  # e.g. "bucketd"
     rel_type: str  # "DEPENDS_ON", "HTTP_CALLS", "USES_CLIENT"
     properties: dict = field(default_factory=dict)
 
@@ -67,7 +67,6 @@ class ServiceAnalysis:
 CLIENT_LIBRARY_MAP: dict[str, str] = {
     "vaultclient": "iam-service",
     "bucketclient": "bucketd",
-    "usage-client": "usage-service",
     "sproxydclient": "sproxyd",
 }
 
@@ -181,7 +180,7 @@ def parse_all_deps(repo_path: Path) -> dict[str, str]:
 # Pre-compiled patterns used by detect_client_patterns
 _CLIENT_REQUIRE_RE = re.compile(
     r"""(?:require\s*\(\s*['"]|from\s+['"]|import\s+['"])"""
-    r"""(vaultclient|bucketclient|usage-client|sproxydclient)""",
+    r"""(vaultclient|bucketclient|sproxydclient)""",
 )
 
 
@@ -464,36 +463,17 @@ def analyze_service(
 
 
 # ---------------------------------------------------------------------------
-# AnsibleRepo indexing
+# Ansible deployment-repo indexing
 # ---------------------------------------------------------------------------
 
 ROLE_TO_SERVICE: dict[str, str] = {
     "s3": "cloudserver",
     "backbeat": "backbeat",
-    "iam-service": "iam-service",
-    "metadata": "metadata-service",
-    "bucketd": "metadata-service",
-    "dbd": "metadata-service",
     "utapi": "utapi",
-    "usage-service": "usage-service",
     "bucket-notifications": "backbeat",
-    "s3-frontend": "s3-frontend",
-    "s3-analytics-clickhouse": "s3-analytics-clickhouse",
-    "s3-analytics-fluentbit": "s3-analytics-fluentbit",
-    "log-courier": "log-courier",
     "redis": "redis",
     "local-redis": "redis",
-    "sproxyd": "sproxyd",
-    "identity-service": "identity-service",
-    "nfsd": "nfsd",
     "osis": "osis",
-    "sagentd": "sagentd",
-    "s3-cdmi": "cloudserver",
-    "usage-service-bucketd": "usage-service",
-    "metadata-s3": "metadata-service",
-    "metadata-usage-service": "metadata-service",
-    "metadata-iam-service": "metadata-service",
-    "metadata-migration": "metadata-service",
     "backbeat-queue": "backbeat",
     "backbeat-worker-base": "backbeat",
     "object-repair": "s3utils",
@@ -502,7 +482,6 @@ ROLE_TO_SERVICE: dict[str, str] = {
 # Regex patterns for topology extraction from Jinja2 config templates
 _TOPOLOGY_PATTERNS: list[tuple[str, str, str]] = [
     (r'"bucketd"\s*:\s*\{[^}]*"host"', "bucketd", "HTTP_CALLS"),
-    (r'"iamd"\s*:\s*\{[^}]*"host"', "iam-service", "HTTP_CALLS"),
     (r'"zookeeper"\s*:\s*\{[^}]*"connectionString"', "zookeeper", "USES_INFRA"),
     (r'"kafka"\s*:\s*\{[^}]*"hosts"', "kafka", "USES_INFRA"),
     (r'"redis"', "redis", "USES_INFRA"),
@@ -786,10 +765,10 @@ def _extract_topology_from_configs(
     return connections
 
 
-def index_ansible(
+def index_ansible_repo(
     ansible_path: Path,
 ) -> tuple[list[CodeChunk], list[ServiceConnection]]:
-    """Index AnsibleRepo deployment configs, docs, and playbooks.
+    """Index an Ansible deployment repo's config templates, docs, and playbooks.
 
     Returns:
         (chunks for pgvector embedding, service connections for Neo4j topology)
@@ -804,7 +783,7 @@ def index_ansible(
     connections = _extract_topology_from_configs(ansible_path)
 
     logger.info(
-        "AnsibleRepo index: Found %d templates, %d group_vars sections, "
+        "Ansible repo index: Found %d templates, %d group_vars sections, "
         "%d docs, %d playbooks",
         len(template_chunks),
         len(group_var_chunks),

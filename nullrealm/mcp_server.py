@@ -50,8 +50,8 @@ logger = logging.getLogger(__name__)
 SUPPORTED_LANGUAGES = (
     "Supported indexing:\n"
     "  Code: Python (.py), JavaScript (.js/.jsx), TypeScript (.ts/.tsx), Go (.go)\n"
-    "  Config (AnsibleRepo): Jinja2, SQL, nginx, YAML, JSON templates\n"
-    "  Docs (AnsibleRepo): Markdown architecture docs, YAML playbooks"
+    "  Config (Ansible repos): Jinja2, SQL, nginx, YAML, JSON templates\n"
+    "  Docs (Ansible repos): Markdown architecture docs, YAML playbooks"
 )
 
 # ---------------------------------------------------------------------------
@@ -208,11 +208,12 @@ async def index_repo(url: str, branch: str = "main", name: str = "", auth_type: 
 
 @mcp.tool()
 async def index_ansible_repo(
-    url: str = "https://github.com/example/private-repo",
-    branch: str = "development/10",
+    url: str,
+    repo_name: str,
+    branch: str = "main",
     auth_type: str = "token",
 ) -> str:
-    """Index AnsibleRepo deployment configs into the knowledge graph.
+    """Index an Ansible deployment repo's configs into the knowledge graph.
 
     Indexes config templates (Jinja2, SQL, nginx), architecture documentation,
     tooling playbooks, and group_vars. Creates service topology edges from
@@ -221,7 +222,6 @@ async def index_ansible_repo(
     from nullrealm.context.repo_manager import register_repo, update_repo_status
     from nullrealm.orchestrator.argo_client import ArgoClient
 
-    repo_name = "AnsibleRepo"
     try:
         await register_repo(repo_name, url, branch=branch, auth_type=auth_type)
         argo = ArgoClient()
@@ -233,7 +233,7 @@ async def index_ansible_repo(
             "mode": "ansible",
         })
         return (
-            f"Indexing AnsibleRepo ({branch}) started (workflow: {workflow_name}).\n"
+            f"Indexing '{repo_name}' ({branch}) started (workflow: {workflow_name}).\n"
             f"Use list_repos to check status.\n\n"
             f"{SUPPORTED_LANGUAGES}"
         )
@@ -242,7 +242,7 @@ async def index_ansible_repo(
             await update_repo_status(repo_name, "failed", error=f"Argo submission failed: {e}")
         except Exception:
             pass
-        return f"Failed to start AnsibleRepo indexing: {e}"
+        return f"Failed to start Ansible repo indexing: {e}"
 
 
 @mcp.tool()
@@ -416,7 +416,7 @@ async def service_urls() -> str:
 | Embedding Atlas | http://atlas.INGRESS_IP.nip.io | Apple's 2D WebGPU embedding visualization |
 | TensorBoard | http://tensorboard.INGRESS_IP.nip.io | 3D embedding projector (PCA/t-SNE/UMAP) |
 | Spotlight | http://spotlight.INGRESS_IP.nip.io | Renumics dataset quality explorer |
-| Neo4j Browser | http://neo4j.INGRESS_IP.nip.io | Knowledge graph (Bolt: neo4j://NEO4J_EXTERNAL_IP:7687) |
+| Neo4j Browser | http://neo4j.INGRESS_IP.nip.io | Knowledge graph (Bolt is cluster-internal only) |
 
 ## Auth
 All GKE services require Google OAuth (cookie shared across *.INGRESS_IP.nip.io).
@@ -569,6 +569,14 @@ async def callback(code: str = Query(...), state: str = Query("")):
 
     email = await get_user_email(access_token)
     logger.info("OAuth callback for %s", email)
+
+    # Fail closed: only emails listed in MCP_ALLOWED_EMAILS may get a token.
+    allowed_emails = {
+        e.strip().lower() for e in os.getenv("MCP_ALLOWED_EMAILS", "").split(",") if e.strip()
+    }
+    if email.lower() not in allowed_emails:
+        logger.warning("OAuth callback rejected for %s (not in MCP_ALLOWED_EMAILS)", email)
+        raise HTTPException(403, "This account is not allowed to use this MCP server")
 
     # Generate our own auth code that Claude Code will exchange at /oauth/token
     import secrets

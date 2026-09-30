@@ -1,5 +1,6 @@
 """Artifact Registry for Docker images."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 LABELS = {"user": "anurag", "project": "null-realm"}
 
@@ -10,7 +11,7 @@ def create_artifact_registry():
         repository_id="null-realm",
         format="DOCKER",
         location="europe-west1",
-        project="YOUR_GCP_PROJECT",
+        project=GCP_PROJECT,
         description="Null Realm Docker images",
         labels=LABELS,
     )

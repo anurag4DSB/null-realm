@@ -21,7 +21,12 @@ class Neo4jStore:
     def __init__(self):
         uri = os.getenv("NEO4J_URI", "bolt://neo4j.null-realm.svc.cluster.local:7687")
         user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "REDACTED_PASSWORD")
+        password = os.getenv("NEO4J_PASSWORD")
+        if not password:
+            raise RuntimeError(
+                "NEO4J_PASSWORD is not set. Export it (or mount it from the "
+                "null-realm-db Secret) before connecting to Neo4j."
+            )
         self._driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
 
     async def close(self):
@@ -199,18 +204,19 @@ class Neo4jStore:
                         )
                         counts["infra"] += len(infra_batch)
 
-                    # CONFIGURED_BY (AnsibleRepo config → Service)
+                    # CONFIGURED_BY (deployment config → Service)
                     config_batch = [c for c in batch if c["rel_type"] == "CONFIGURED_BY"]
                     if config_batch:
                         await session.run(
                             """
                             UNWIND $conns AS c
                             MATCH (a:Service {name: c.source})
-                            MERGE (cfg:Symbol {file: c.path, name: c.target, repo: "AnsibleRepo"})
+                            MERGE (cfg:Symbol {file: c.path, name: c.target, repo: $repo})
                             SET cfg.type = "config"
                             MERGE (a)-[:CONFIGURED_BY {file: c.path}]->(cfg)
                             """,
                             conns=config_batch,
+                            repo=analysis.repo_name,
                         )
 
                     # BUILT_FROM (Docker image → Service/Repo)

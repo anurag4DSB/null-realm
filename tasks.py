@@ -18,8 +18,11 @@ Usage:
     invoke gcp-status           # Show all deployed GCP resources
 """
 
+import os
+
 from invoke import task
 
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "YOUR_GCP_PROJECT")
 CLUSTER_NAME = "null-realm"
 KIND_CONFIG = "scripts/kind-config.yaml"
 NAMESPACE_YAML = "infra/k8s/base/namespace.yaml"
@@ -131,7 +134,7 @@ def get_gke_credentials(c):
     """Get kubeconfig credentials for GKE cluster."""
     c.run(
         "gcloud container clusters get-credentials null-realm "
-        "--region europe-west1 --project YOUR_GCP_PROJECT"
+        f"--region europe-west1 --project {GCP_PROJECT}"
     )
 
 
@@ -155,7 +158,7 @@ def sql_stop(c):
     c.run(
         "gcloud sql instances patch null-realm-db "
         "--activation-policy NEVER "
-        "--project YOUR_GCP_PROJECT"
+        f"--project {GCP_PROJECT}"
     )
     print("Cloud SQL stopped. Run 'invoke sql-start' before your next session.")
 
@@ -166,7 +169,7 @@ def sql_start(c):
     c.run(
         "gcloud sql instances patch null-realm-db "
         "--activation-policy ALWAYS "
-        "--project YOUR_GCP_PROJECT"
+        f"--project {GCP_PROJECT}"
     )
     print("Cloud SQL starting... (takes ~30 seconds to be ready)")
 
@@ -174,7 +177,7 @@ def sql_start(c):
 @task
 def gcp_status(c):
     """Show all deployed null-realm GCP resources (labeled project:null-realm)."""
-    project = "YOUR_GCP_PROJECT"
+    project = GCP_PROJECT
     print("\n=== GKE Clusters ===")
     c.run(f"gcloud container clusters list --project={project} --format='table(name,location,status,currentMasterVersion)'", warn=True)
 

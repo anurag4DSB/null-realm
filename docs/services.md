@@ -25,7 +25,7 @@ All GKE services require **Google OAuth** (cookie shared across `*.INGRESS_IP.ni
 | **Spotlight** | http://spotlight.INGRESS_IP.nip.io | Renumics dataset quality explorer |
 | **Neo4j Browser** | http://neo4j.INGRESS_IP.nip.io | Knowledge graph browser + Cypher console |
 
-**Neo4j Bolt endpoint** (for connecting Neo4j Browser to the server): `neo4j://NEO4J_EXTERNAL_IP:7687`
+**Neo4j Bolt** (7687) is cluster-internal only. For local access use `kubectl port-forward -n null-realm svc/neo4j 7687:7687`.
 
 ### Local (Kind)
 

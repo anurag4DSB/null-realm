@@ -1,11 +1,12 @@
 """Secret Manager secrets for API keys and credentials."""
 import pulumi_gcp as gcp
+from gcp_project import GCP_PROJECT
 
 LABELS = {"user": "anurag", "project": "null-realm"}
 
 
 def create_secrets():
-    project = "YOUR_GCP_PROJECT"
+    project = GCP_PROJECT
     replication = gcp.secretmanager.SecretReplicationArgs(
         auto=gcp.secretmanager.SecretReplicationAutoArgs(),
     )
