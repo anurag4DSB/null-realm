@@ -2,7 +2,7 @@
 
 Null Realm is a lab to build, deploy, and evaluate multi-agent systems on Kubernetes. It runs on GKE Autopilot in `europe-west1`, with a local Kind cluster for development. Each component works in both environments.
 
-The lab has two parts:
+The lab has three parts:
 
 - An agent pipeline. You chat with an agent in Chainlit. FastAPI sends the request to a LangGraph agent, which calls models through LiteLLM. Argo Workflows runs multi-step workflows across worker pods, and NATS carries the events between them.
 - A code knowledge graph. The indexer parses repositories with tree-sitter. It stores code embeddings (vectors that represent the meaning of code) in pgvector and code relationships in Neo4j.
