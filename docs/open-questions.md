@@ -170,4 +170,19 @@ The JS/TS tree-sitter parsers extract CALLS relationships for every `call_expres
 
 ---
 
+## Argo repo-indexer parallelism cap
+
+Running 14 repo-indexer workflows simultaneously overloads LiteLLM (single proxy pod handling ~4,200 embedding requests at once) and causes Neo4j write contention. Empirical limit of 4-at-a-time works reliably.
+
+**Fix**: Add `parallelism: 4` to the Argo WorkflowTemplate in `infra/k8s/gke/argo-templates/repo-indexer.yaml`:
+```yaml
+spec:
+  parallelism: 4
+```
+This caps concurrent indexer pods cluster-wide at 4, regardless of how many workflows are submitted.
+
+**When**: Post-v1.0, or when bulk re-indexing becomes a regular workflow.
+
+---
+
 > Add new items here as they come up. Move to `docs/architecture/decisions.md` once a decision is made.

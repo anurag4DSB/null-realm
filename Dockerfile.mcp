@@ -8,17 +8,20 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files first (for layer caching)
 COPY pyproject.toml uv.lock README.md ./
 
-# Install production dependencies only
-RUN uv sync --frozen --no-dev --no-install-project
+# Install deps with BuildKit cache mount — downloads are cached across builds
+# even with --no-cache (cache mount persists on the build host, not in layers)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
-# Copy application code
+# Copy application code (changes frequently — below deps layer)
 COPY nullrealm/ nullrealm/
 
 # Copy repo indexes (served as MCP resources)
 COPY repo-indexes/ repo-indexes/
 
-# Install the project itself
-RUN uv sync --frozen --no-dev
+# Install the project itself (fast — deps already installed above)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
 
 EXPOSE 8090
 

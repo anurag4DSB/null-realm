@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import contextlib
+import contextvars
 import logging
 import os
 import pathlib
@@ -31,6 +32,15 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    OTLPSpanExporter as OTLPHTTPSpanExporter,
+)
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
 from nullrealm.mcp_auth import (
     create_mcp_token,
     exchange_code,
@@ -40,10 +50,23 @@ from nullrealm.mcp_auth import (
 )
 from nullrealm.mcp_tools import (
     do_code_search,
+    do_get_full_chunk,
     do_graph_path,
     do_graph_query,
     do_service_map,
 )
+
+# Context variable (for same-task propagation)
+_current_user_email: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_current_user_email", default="anonymous"
+)
+
+# Thread-safe dict keyed by client IP:port for cross-task propagation.
+# The MCP library runs tool calls in separate async tasks where ContextVar
+# doesn't propagate. This dict bridges the gap.
+import threading
+_user_email_by_client: dict[str, str] = {}
+_user_email_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +110,17 @@ async def code_search(query: str, repo: str = "null-realm", k: int = 10) -> str:
     the pgvector store, ranked by cosine similarity.
     """
     return await do_code_search(query, repo=repo, k=k)
+
+
+@mcp.tool()
+async def get_full_chunk(file_path: str, symbol_name: str, repo: str = "null-realm") -> str:
+    """Get the full untruncated source code of a symbol.
+
+    Use after code_search to see the complete function/class body when
+    the search result is truncated. Provide file_path and symbol_name
+    exactly as shown in search results.
+    """
+    return await do_get_full_chunk(file_path, symbol_name, repo=repo)
 
 
 @mcp.tool()
@@ -397,26 +431,26 @@ async def service_urls() -> str:
 ## Chat & AI
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Chat (Chainlit) | http://chat.34.53.165.155.nip.io | Chat with Claude via LangGraph agent |
-| MCP Server (Hopocalypse) | http://hopocalypse.34.53.165.155.nip.io/mcp | MCP tools: code_search, graph_query, index_repo, list_repos |
-| API Server | http://api.34.53.165.155.nip.io | REST API: /health, /api/v1/registry/*, /api/v1/workflows/* |
+| Chat (Chainlit) | https://chat.34.53.165.155.nip.io | Chat with Claude via LangGraph agent |
+| MCP Server (Hopocalypse) | https://hopocalypse.34.53.165.155.nip.io/mcp | MCP tools: code_search, graph_query, index_repo, list_repos |
+| API Server | https://api.34.53.165.155.nip.io | REST API: /health, /api/v1/registry/*, /api/v1/workflows/* |
 
 ## Observability
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Langfuse | http://34.53.165.155.nip.io | LLM traces (tokens, cost, latency) |
-| Grafana | http://grafana.34.53.165.155.nip.io | Dashboards: K8s, Argo Workflows, Code Knowledge Graph |
-| Jaeger | http://jaeger.34.53.165.155.nip.io | Distributed traces (OpenTelemetry spans) |
-| Argo Workflows | http://argo.34.53.165.155.nip.io | Multi-agent workflow orchestration UI |
+| Langfuse | https://34.53.165.155.nip.io | LLM traces (tokens, cost, latency) |
+| Grafana | https://grafana.34.53.165.155.nip.io | Dashboards: K8s, Argo Workflows, Code Knowledge Graph |
+| Jaeger | https://jaeger.34.53.165.155.nip.io | Distributed traces (OpenTelemetry spans) |
+| Argo Workflows | https://argo.34.53.165.155.nip.io | Multi-agent workflow orchestration UI |
 
 ## Code Intelligence
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Embedding Explorer | http://embeddings.34.53.165.155.nip.io | 2D/3D scatter + data table + graph review |
-| Embedding Atlas | http://atlas.34.53.165.155.nip.io | Apple's 2D WebGPU embedding visualization |
-| TensorBoard | http://tensorboard.34.53.165.155.nip.io | 3D embedding projector (PCA/t-SNE/UMAP) |
-| Spotlight | http://spotlight.34.53.165.155.nip.io | Renumics dataset quality explorer |
-| Neo4j Browser | http://neo4j.34.53.165.155.nip.io | Knowledge graph (Bolt: neo4j://35.233.44.47:7687) |
+| Embedding Explorer | https://embeddings.34.53.165.155.nip.io | 2D/3D scatter + data table + graph review |
+| Embedding Atlas | https://atlas.34.53.165.155.nip.io | Apple's 2D WebGPU embedding visualization |
+| TensorBoard | https://tensorboard.34.53.165.155.nip.io | 3D embedding projector (PCA/t-SNE/UMAP) |
+| Spotlight | https://spotlight.34.53.165.155.nip.io | Renumics dataset quality explorer |
+| Neo4j Browser | https://neo4j.34.53.165.155.nip.io | Knowledge graph (Bolt: neo4j://35.233.44.47:7687) |
 
 ## Auth
 All GKE services require Google OAuth (cookie shared across *.34.53.165.155.nip.io).
@@ -453,9 +487,35 @@ async def indexed_repos_resource() -> str:
 # ---------------------------------------------------------------------------
 
 
+def _init_phoenix_tracing():
+    """Set up OpenTelemetry tracing to both Jaeger and Phoenix."""
+    jaeger_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    phoenix_endpoint = os.getenv(
+        "PHOENIX_COLLECTOR_ENDPOINT",
+        "http://phoenix.null-realm.svc.cluster.local:6006/v1/traces",
+    )
+
+    resource = Resource.create({"service.name": "mcp-server"})
+    provider = TracerProvider(resource=resource)
+
+    # Send spans to Jaeger (gRPC)
+    provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=jaeger_endpoint, insecure=True))
+    )
+    # Send spans to Phoenix (HTTP)
+    provider.add_span_processor(
+        BatchSpanProcessor(OTLPHTTPSpanExporter(endpoint=phoenix_endpoint))
+    )
+
+    trace.set_tracer_provider(provider)
+    logger.info("OTEL tracing initialised → Jaeger (%s) + Phoenix (%s)", jaeger_endpoint, phoenix_endpoint)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the MCP session manager lifecycle."""
+    _init_phoenix_tracing()
+
     # Ensure repos table (and other registry tables) exist
     try:
         from nullrealm.registry.database import init_db
@@ -482,16 +542,28 @@ app.add_middleware(
 )
 
 
-# --- Health check ---------------------------------------------------------
+# NOTE: @app.middleware("http") does NOT apply to mounted sub-apps like /mcp.
+# We use raw ASGI middleware instead (see UserEmailASGIMiddleware below).
+
+
+# --- Health check + Prometheus metrics ------------------------------------
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "mcp-server"}
 
 
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from starlette.responses import Response
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 # --- OAuth discovery + endpoints (RFC 8414 for MCP SDK) ------------------
 
-_BASE_URL = os.getenv("MCP_BASE_URL", "http://hopocalypse.34.53.165.155.nip.io")
+_BASE_URL = os.getenv("MCP_BASE_URL", "https://hopocalypse.34.53.165.155.nip.io")
 
 # In-memory store for pending auth codes (code → email mapping)
 _pending_codes: dict[str, str] = {}
@@ -637,6 +709,96 @@ async def verify(request: Request):
 # --- Mount MCP at /mcp ----------------------------------------------------
 
 app.mount("/mcp", mcp.streamable_http_app())
+
+
+# ---------------------------------------------------------------------------
+# ASGI middleware — wraps the ENTIRE app including /mcp mount
+# ---------------------------------------------------------------------------
+
+class UserEmailASGIMiddleware:
+    """Extract user email from Bearer JWT and enforce auth on /mcp.
+
+    FastAPI's @app.middleware("http") does NOT apply to mounted sub-apps.
+    This raw ASGI middleware wraps the whole application so it intercepts
+    every request, including those to the MCP Streamable HTTP endpoint.
+
+    Auth enforcement:
+    - /mcp/* → requires valid Bearer JWT, returns 401 if missing/invalid
+    - /oauth/*, /.well-known/*, /health → public (no auth required)
+    """
+
+    # Paths that must remain public for OAuth flow and K8s probes
+    PUBLIC_PREFIXES = ("/oauth/", "/.well-known/", "/health")
+
+    def __init__(self, asgi_app):
+        self.app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        # Rewrite /mcp -> /mcp/ in-place to avoid Starlette's 307 trailing-slash
+        # redirect on the mounted streamable-HTTP app. Some MCP clients drop the
+        # Authorization header when following redirects, which produces a 401
+        # loop after a successful OAuth exchange.
+        if path == "/mcp":
+            scope = {**scope, "path": "/mcp/", "raw_path": b"/mcp/"}
+            path = "/mcp/"
+
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"").decode()
+
+        # Extract email from JWT if present
+        email = "anonymous"
+        token_valid = False
+        if auth_header.startswith("Bearer "):
+            token = auth_header.removeprefix("Bearer ").strip()
+            try:
+                payload = verify_mcp_token(token)
+                email = payload.get("email", "anonymous")
+                token_valid = True
+            except Exception:
+                pass
+
+        _current_user_email.set(email)
+
+        # Store in shared state module (avoids circular import issues)
+        if email != "anonymous":
+            from nullrealm.mcp_state import set_email
+            set_email(email)
+
+        logger.info("ASGI middleware: path=%s email=%s token_valid=%s",
+                     path, email, token_valid)
+
+        # Enforce auth on /mcp — reject unauthenticated requests
+        is_public = any(path.startswith(p) for p in self.PUBLIC_PREFIXES)
+        if path.startswith("/mcp") and not is_public and not token_valid:
+            # Return 401 with WWW-Authenticate header pointing to OAuth metadata
+            # This tells the MCP SDK to start the OAuth flow
+            response_body = b'{"error": "unauthorized", "message": "Bearer token required. Initiate OAuth flow via /.well-known/oauth-authorization-server"}'
+            await send({
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                    [b"www-authenticate", b'Bearer resource_metadata="/.well-known/oauth-authorization-server"'],
+                ],
+            })
+            await send({
+                "type": "http.response.body",
+                "body": response_body,
+            })
+            return
+
+        await self.app(scope, receive, send)
+
+
+# Wrap the FastAPI app with the ASGI middleware
+_inner_app = app
+app = UserEmailASGIMiddleware(_inner_app)
 
 
 # ---------------------------------------------------------------------------

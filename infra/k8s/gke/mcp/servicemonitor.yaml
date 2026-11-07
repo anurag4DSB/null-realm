@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mcp-server
+  namespace: null-realm
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: mcp-server
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

@@ -191,6 +191,49 @@ class PgVectorStore:
             for row in rows
         ]
 
+    async def get_chunk(
+        self,
+        file_path: str,
+        symbol_name: str,
+        repo: str,
+    ) -> dict | None:
+        """Fetch a single chunk by natural key (repo, file_path, symbol_name).
+
+        Returns the full untruncated chunk_text, or None if not found.
+        """
+        stmt = select(
+            code_embeddings.c.chunk_text,
+            code_embeddings.c.symbol_type,
+            code_embeddings.c.line_start,
+            code_embeddings.c.line_end,
+            code_embeddings.c.metadata,
+            code_embeddings.c.repo,
+            code_embeddings.c.file_path,
+            code_embeddings.c.symbol_name,
+        ).where(
+            (code_embeddings.c.repo == repo)
+            & (code_embeddings.c.file_path == file_path)
+            & (code_embeddings.c.symbol_name == symbol_name)
+        )
+
+        async with self._session_factory() as session:
+            result = await session.execute(stmt)
+            row = result.first()
+
+        if not row:
+            return None
+
+        return {
+            "chunk_text": row.chunk_text,
+            "symbol_type": row.symbol_type,
+            "line_start": row.line_start,
+            "line_end": row.line_end,
+            "metadata": row.metadata,
+            "repo": row.repo,
+            "file_path": row.file_path,
+            "symbol_name": row.symbol_name,
+        }
+
     async def close(self):
         """Dispose of the engine."""
         await self._engine.dispose()

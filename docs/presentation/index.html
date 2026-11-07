@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Null Realm - Multi-Repo Knowledge Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .hero {
+            text-align: center;
+            padding: 80px 40px 60px;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+            border-bottom: 1px solid #1a1a3a;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+        .hero p {
+            font-size: 1.3rem;
+            color: #94a3b8;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 30px;
+            background: #0f0f1a;
+            border-bottom: 1px solid #1a1a3a;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat .number {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+        .stat .label {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+        section h2 {
+            font-size: 2rem;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        section h2 .badge {
+            font-size: 0.75rem;
+            background: #1e3a5f;
+            color: #60a5fa;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        section > p {
+            color: #94a3b8;
+            font-size: 1.05rem;
+            margin-bottom: 30px;
+            max-width: 800px;
+        }
+        .mermaid {
+            background: #0f0f1a;
+            border: 1px solid #1a1a3a;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0 40px;
+            overflow-x: auto;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .card {
+            background: #12121f;
+            border: 1px solid #1a1a3a;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card h3 {
+            color: #e2e8f0;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        .card p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .card .tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-top: 10px;
+            margin-right: 4px;
+        }
+        .card .tag.blue { background: #1e3a5f; color: #60a5fa; }
+        .card .tag.purple { background: #2e1a5f; color: #a78bfa; }
+        .card .tag.green { background: #1a3a2e; color: #4ade80; }
+        .card .tag.orange { background: #3a2a1a; color: #fb923c; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a1a3a;
+        }
+        th {
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td { color: #e2e8f0; font-size: 0.95rem; }
+        td.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; color: #a78bfa; }
+        tr:hover td { background: #12121f; }
+        .divider {
+            border: none;
+            border-top: 1px solid #1a1a3a;
+            margin: 0;
+        }
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            margin: 24px 0;
+        }
+        .flow-step .step-num {
+            min-width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #1e3a5f, #2e1a5f);
+            color: #60a5fa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .flow-step .step-content h4 {
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+        .flow-step .step-content p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .example-box {
+            background: #0a0a1a;
+            border: 1px solid #1a1a3a;
+            border-left: 3px solid #60a5fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .example-box h4 {
+            color: #60a5fa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .example-box pre {
+            color: #e2e8f0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #475569;
+            font-size: 0.85rem;
+            border-top: 1px solid #1a1a3a;
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>Null Realm</h1>
+    <p>A multi-repo knowledge graph that understands your entire microservice platform — code, configs, service topology, and cross-repo dependencies.</p>
+</div>
+
+<div class="stats-bar">
+    <div class="stat">
+        <div class="number">14</div>
+        <div class="label">Repos Indexed</div>
+    </div>
+    <div class="stat">
+        <div class="number">11,159</div>
+        <div class="label">Code Chunks</div>
+    </div>
+    <div class="stat">
+        <div class="number">1,431</div>
+        <div class="label">Cross-Repo Links</div>
+    </div>
+    <div class="stat">
+        <div class="number">4</div>
+        <div class="label">Languages</div>
+    </div>
+    <div class="stat">
+        <div class="number">15</div>
+        <div class="label">MCP Tools</div>
+    </div>
+</div>
+
+<!-- SECTION: High-Level Architecture -->
+<section>
+    <h2>System Architecture</h2>
+    <p>Three layers: MCP Server (query + orchestrate), Argo Workers (clone + parse + embed + store), and shared storage (PostgreSQL + Neo4j).</p>
+
+    <div class="mermaid">
+graph TB
+    subgraph Client["Claude Code / MCP Client"]
+        CC[fa:fa-terminal Claude Code]
+    end
+
+    subgraph MCP["MCP Server (Lightweight, No Git)"]
+        direction TB
+        Tools["15 MCP Tools"]
+        Query["Query Layer"]
+    end
+
+    subgraph Argo["Argo Worker Pods (Ephemeral)"]
+        direction TB
+        Clone["Git Clone<br/>(with GITHUB_TOKEN)"]
+        Parse["Tree-Sitter Parse<br/>(JS/TS/Go/Python)"]
+        Embed["Vertex AI Embed<br/>(text-embedding-005)"]
+        Analyze["Service Analyzer<br/>(deps, HTTP, Kafka)"]
+    end
+
+    subgraph Storage["Shared Storage (Persistent)"]
+        PG["PostgreSQL<br/>repos table + pgvector"]
+        Neo["Neo4j<br/>Symbol graph + Service topology"]
+    end
+
+    CC -->|"tool calls"| MCP
+    MCP -->|"submit workflow"| Argo
+    MCP -->|"query"| Storage
+    Argo -->|"store chunks + edges"| Storage
+
+    style Client fill:#1a1a2e,stroke:#334,color:#e0e0e0
+    style MCP fill:#1e3a5f,stroke:#2e4a6f,color:#e0e0e0
+    style Argo fill:#2e1a4f,stroke:#3e2a5f,color:#e0e0e0
+    style Storage fill:#1a3a2e,stroke:#2a4a3e,color:#e0e0e0
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Index Repo Flow -->
+<section>
+    <h2>Flow 1: Index a Repository <span class="badge">index_repo</span></h2>
+    <p>When you call <code>index_repo("https://github.com/scality/cloudserver")</code>, here's what happens:</p>
+
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User (Claude Code)
+    participant M as MCP Server
+    participant A as Argo Workflow
+    participant G as Git (GitHub)
+    participant P as Parser (tree-sitter)
+    participant V as Vertex AI
+    participant PG as pgvector
+    participant N as Neo4j
+    participant DB as repos table
+
+    U->>M: index_repo(url, branch)
+    M->>DB: register_repo(status=pending)
+    M->>A: submit workflow (repo-indexer)
+    M-->>U: "Indexing started (workflow: xyz)"
+
+    Note over A: Argo pod starts
+
+    A->>G: git clone --depth 1
+    G-->>A: repo files
+
+    A->>P: parse all .js/.ts/.go/.py files
+    P-->>A: 1,293 CodeChunks + 11,864 relationships
+
+    A->>V: embed 1,293 chunks (batch size 5)
+    V-->>A: 1,293 x 768-dim vectors
+
+    A->>PG: store embeddings
+    A->>N: store symbol graph (UNWIND batches)
+    A->>N: store service topology
+    A->>DB: update status=ready, dep_map={...}
+
+    Note over A: Pod terminates
+
+    U->>M: list_repos()
+    M->>DB: query repos table
+    M-->>U: "cloudserver: ready, 1,293 chunks"
+    </div>
+
+    <div class="card-grid">
+        <div class="card">
+            <h3>Multi-Language Parsing</h3>
+            <p>tree-sitter extracts functions, classes, methods, imports, calls, and inheritance. Plugin architecture — one parser per language.</p>
+            <span class="tag blue">JavaScript</span>
+            <span class="tag purple">TypeScript</span>
+            <span class="tag green">Go</span>
+            <span class="tag orange">Python</span>
+        </div>
+        <div class="card">
+            <h3>Federation Mode</h3>
+            <p>Special <code>--mode federation</code> for config repos. Chunks Jinja2 templates, SQL schemas, nginx configs, YAML playbooks, and Markdown docs as searchable context.</p>
+            <span class="tag">Jinja2</span>
+            <span class="tag">SQL</span>
+            <span class="tag">nginx</span>
+            <span class="tag">YAML</span>
+        </div>
+        <div class="card">
+            <h3>Vertex AI Embeddings</h3>
+            <p>text-embedding-005 via LiteLLM proxy with Workload Identity. Batch size 5 to stay under the 20K token/request limit. ~30s for 1,293 chunks.</p>
+            <span class="tag blue">768 dimensions</span>
+            <span class="tag">HNSW index</span>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Link Repos Flow -->
+<section>
+    <h2>Flow 2: Cross-Repo Linking <span class="badge">link_repos</span></h2>
+    <p>After indexing, <code>link_repos()</code> creates XREF edges connecting symbols across repositories using package.json dependency resolution.</p>
+
+    <div class="mermaid">
+graph LR
+    subgraph CS["cloudserver"]
+        A1["objectPut()"] -->|CALLS| A2["putObjectMD()"]
+        A3["&lt;module&gt;"] -->|IMPORTS| A4["arsenal"]
+    end
+
+    subgraph AR["Arsenal"]
+        B1["MetadataWrapper"]
+        B2["MetadataWrapper.putObjectMD()"]
+        B1 -->|CONTAINS| B2
+    end
+
+    A2 -.->|"XREF (cross-repo)"| B2
+    A1 -.->|"XREF"| B1
+
+    style CS fill:#1e3a5f,stroke:#2e4a6f,color:#e0e0e0
+    style AR fill:#2e1a4f,stroke:#3e2a5f,color:#e0e0e0
+    </div>
+
+    <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+            <h4>Read dep_map from repos table</h4>
+            <p>Each repo's <code>package.json</code> / <code>go.mod</code> dependencies are stored as JSONB during indexing. <code>link_repos</code> reads them from the database — no filesystem access needed.</p>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+            <h4>Find importing files</h4>
+            <p>For each dependency (e.g., cloudserver depends on Arsenal), find all files that have IMPORTS edges to that package name.</p>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+            <h4>Match orphan CALLS to real symbols</h4>
+            <p>Unresolved CALLS from importing files (e.g., <code>putObjectMD</code>) are matched against actual symbol definitions in the dependency repo (e.g., <code>MetadataWrapper.putObjectMD</code> in Arsenal). Case-insensitive repo name resolution handles GitHub naming differences.</p>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+            <h4>Create XREF edges</h4>
+            <p>Neo4j <code>MERGE</code> creates XREF edges tagged with the package name. These are separate from intra-repo RELATES edges — queryable, deletable, and don't interfere with per-repo operations.</p>
+        </div>
+    </div>
+
+    <div class="example-box">
+        <h4>Result: 1,431 cross-repo edges</h4>
+        <pre>scuba      -> Arsenal       621 XREF edges
+vault      -> Arsenal       520
+cloudserver-> Arsenal       113
+backbeat   -> Arsenal        55
+utapi      -> vaultclient    28
+scuba      -> bucketclient   25
+MetaData   -> bucketclient   19
+...</pre>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Fetching Context -->
+<section>
+    <h2>Flow 3: Fetching Context <span class="badge">code_search + graph_query</span></h2>
+    <p>When you ask "how does bucket logging work?", the system combines semantic search (pgvector) with graph traversal (Neo4j) across all 14 repos.</p>
+
+    <div class="mermaid">
+graph TB
+    Q["Query: 'how does bucket logging work?'"]
+
+    subgraph Search["Semantic Search (pgvector)"]
+        S1["bucketPutLogging.js<br/><small>cloudserver</small>"]
+        S2["serverAccessLogger.js<br/><small>cloudserver</small>"]
+        S3["LogRecord struct<br/><small>log-courier (Go)</small>"]
+        S4["access_logs.sql.j2<br/><small>Federation (SQL)</small>"]
+        S5["fluent-bit.conf.j2<br/><small>Federation (config)</small>"]
+    end
+
+    subgraph Graph["Graph Traversal (Neo4j)"]
+        G1["LogObjectBuilder"] -->|CONTAINS| G2["Build()"]
+        G1 -->|CONTAINS| G3["generateKey()"]
+        G1 -->|CONTAINS| G4["writeLogRecord()"]
+        G5["objectPut"] -->|XREF| G6["MetadataWrapper.putObjectMD"]
+    end
+
+    Q --> Search
+    Q --> Graph
+
+    style Search fill:#1e3a5f,stroke:#2e4a6f,color:#e0e0e0
+    style Graph fill:#2e1a4f,stroke:#3e2a5f,color:#e0e0e0
+    </div>
+
+    <div class="card-grid">
+        <div class="card">
+            <h3>code_search</h3>
+            <p>Embeds your query with the same Vertex AI model, then finds the top-K nearest neighbors in pgvector. Searches across ALL repos simultaneously — JS, Go, Python, SQL, configs.</p>
+            <span class="tag blue">Semantic</span>
+            <span class="tag">Cross-repo</span>
+        </div>
+        <div class="card">
+            <h3>graph_query</h3>
+            <p>Starts from a symbol and traverses RELATES + XREF edges in Neo4j. Depth-limited BFS shows connected functions, classes, and cross-repo dependencies.</p>
+            <span class="tag purple">Structural</span>
+            <span class="tag">XREF traversal</span>
+        </div>
+        <div class="card">
+            <h3>service_topology</h3>
+            <p>Returns the full service graph: DEPENDS_ON, HTTP_CALLS, USES_CLIENT, USES_INFRA, EXPOSES. Derived from package.json + code patterns + Federation configs.</p>
+            <span class="tag green">Architecture</span>
+            <span class="tag">Federation</span>
+        </div>
+    </div>
+
+    <div class="example-box">
+        <h4>Example: "How does bucket logging work?" pulls from 5 repos</h4>
+        <pre>cloudserver  (JS)  -> bucketPutLogging API, serverAccessLogger
+Arsenal      (TS)  -> BucketLoggingStatus data model
+Federation   (J2)  -> ClickHouse SQL schema, FluentBit config, log-courier config
+log-courier  (Go)  -> LogObjectBuilder, generateKey, writeLogRecord
++ service topology -> cloudserver -> FluentBit -> ClickHouse -> log-courier -> S3</pre>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Indexed Repos -->
+<section>
+    <h2>Indexed Repositories</h2>
+    <p>14 repos covering the entire Scality S3 platform — core services, client libraries, deployment configs, and operational tools.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Repository</th>
+                <th>Chunks</th>
+                <th>Files</th>
+                <th>Type</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td class="mono">Arsenal</td><td>2,314</td><td>281</td><td><span class="tag blue">JS/TS</span></td><td>Shared library (metadata, data, auth, models)</td></tr>
+            <tr><td class="mono">backbeat</td><td>2,026</td><td>259</td><td><span class="tag blue">JS</span></td><td>Async operations (CRR, lifecycle, notifications)</td></tr>
+            <tr><td class="mono">vault</td><td>1,647</td><td>189</td><td><span class="tag blue">JS</span></td><td>Authentication / IAM service</td></tr>
+            <tr><td class="mono">MetaData</td><td>1,522</td><td>137</td><td><span class="tag blue">JS</span></td><td>Metadata daemon (bucketd)</td></tr>
+            <tr><td class="mono">cloudserver</td><td>1,293</td><td>396</td><td><span class="tag blue">JS</span><span class="tag green">Go</span></td><td>S3 API server</td></tr>
+            <tr><td class="mono">scuba</td><td>938</td><td>118</td><td><span class="tag blue">JS</span></td><td>Quota / utilization (SUR)</td></tr>
+            <tr><td class="mono">utapi</td><td>715</td><td>98</td><td><span class="tag blue">JS</span></td><td>Usage tracking / metrics</td></tr>
+            <tr><td class="mono">log-courier</td><td>222</td><td>33</td><td><span class="tag green">Go</span></td><td>Access log delivery to S3</td></tr>
+            <tr><td class="mono">metadata-migration</td><td>~200</td><td>~30</td><td><span class="tag green">Go</span></td><td>Metadata migration tooling</td></tr>
+            <tr><td class="mono">Federation</td><td>186</td><td>144</td><td><span class="tag orange">Config</span></td><td>Deployment orchestrator (Jinja2, SQL, nginx)</td></tr>
+            <tr><td class="mono">bucketclient</td><td>127</td><td>32</td><td><span class="tag blue">JS</span></td><td>MetaData HTTP client (API contract)</td></tr>
+            <tr><td class="mono">vaultclient</td><td>82</td><td>15</td><td><span class="tag blue">JS</span></td><td>Vault HTTP client (API contract)</td></tr>
+            <tr><td class="mono">scubaclient</td><td>49</td><td>6</td><td><span class="tag blue">JS</span></td><td>Scuba HTTP client (API contract)</td></tr>
+            <tr><td class="mono">sproxydclient</td><td>38</td><td>4</td><td><span class="tag blue">JS</span></td><td>Sproxyd HTTP client (API contract)</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Neo4j Data Model -->
+<section>
+    <h2>Knowledge Graph Data Model</h2>
+    <p>Five node types and ten relationship types model code, services, APIs, events, and infrastructure.</p>
+
+    <div class="mermaid">
+graph TB
+    Symbol["Symbol<br/><small>function, class, method, config</small>"]
+    Service["Service<br/><small>cloudserver, backbeat, vault...</small>"]
+    Endpoint["Endpoint<br/><small>/_/healthcheck, /_/crr/status</small>"]
+    Topic["Topic<br/><small>backbeat-replication, backbeat-metrics</small>"]
+    Infra["InfraService<br/><small>redis, kafka, zookeeper</small>"]
+
+    Symbol -->|"RELATES<br/>(CALLS, IMPORTS,<br/>INHERITS, CONTAINS)"| Symbol
+    Symbol -.->|"XREF<br/>(cross-repo)"| Symbol
+
+    Service -->|DEPENDS_ON| Service
+    Service -->|HTTP_CALLS| Service
+    Service -->|USES_CLIENT| Service
+    Service -->|EXPOSES| Endpoint
+    Service -->|PRODUCES| Topic
+    Service -->|CONSUMES| Topic
+    Service -->|USES_INFRA| Infra
+
+    style Symbol fill:#1e3a5f,stroke:#2e4a6f,color:#e0e0e0
+    style Service fill:#2e1a4f,stroke:#3e2a5f,color:#e0e0e0
+    style Endpoint fill:#1a3a2e,stroke:#2a4a3e,color:#e0e0e0
+    style Topic fill:#3a2a1a,stroke:#4a3a2a,color:#e0e0e0
+    style Infra fill:#3a1a1a,stroke:#4a2a2a,color:#e0e0e0
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: MCP Tools -->
+<section>
+    <h2>MCP Tools (15)</h2>
+    <p>All accessible via Claude Code, any MCP client, or the Hopocalypse server at <code>hopocalypse.34.53.165.155.nip.io/mcp</code>.</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <h3>Search + Query</h3>
+            <p><code>code_search</code> -- Semantic search across all repos<br/>
+            <code>graph_query</code> -- Neo4j neighbor traversal<br/>
+            <code>graph_path</code> -- Shortest path between symbols<br/>
+            <code>context_assemble</code> -- Hybrid Graph RAG<br/>
+            <code>service_map</code> -- Cross-file relationships</p>
+        </div>
+        <div class="card">
+            <h3>Indexing</h3>
+            <p><code>index_repo</code> -- Index code repo via Argo<br/>
+            <code>index_federation_repo</code> -- Index configs via Argo<br/>
+            <code>delete_repo_index</code> -- Remove indexed data<br/>
+            <code>add_repo</code> -- Register without indexing<br/>
+            <code>list_repos</code> -- Show all repos + stats</p>
+        </div>
+        <div class="card">
+            <h3>Topology</h3>
+            <p><code>link_repos</code> -- Create cross-repo XREF edges<br/>
+            <code>service_topology</code> -- Full service graph<br/>
+            <code>service_deps</code> -- Dependencies of a service</p>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION: Technology Stack -->
+<section>
+    <h2>Technology Stack</h2>
+    <div class="card-grid">
+        <div class="card">
+            <h3>Infrastructure</h3>
+            <p>GKE Autopilot (europe-west1), Pulumi Python IaC, Traefik Ingress with Google OAuth, Argo Workflows v4</p>
+        </div>
+        <div class="card">
+            <h3>AI / Embeddings</h3>
+            <p>Vertex AI text-embedding-005 (768 dims) via LiteLLM proxy, Claude via Anthropic API, LangGraph agents</p>
+        </div>
+        <div class="card">
+            <h3>Storage</h3>
+            <p>PostgreSQL + pgvector (HNSW index), Neo4j Community Edition, Cloud SQL</p>
+        </div>
+        <div class="card">
+            <h3>Parsing</h3>
+            <p>tree-sitter (JS, TS, Go), Python ast module, Jinja2/YAML/SQL text chunking for Federation</p>
+        </div>
+        <div class="card">
+            <h3>Observability</h3>
+            <p>Grafana, Jaeger, Langfuse, Prometheus, OpenTelemetry</p>
+        </div>
+        <div class="card">
+            <h3>Interface</h3>
+            <p>MCP Server (Streamable HTTP + Google OAuth), Chainlit chat UI, Claude Code CLI</p>
+        </div>
+    </div>
+</section>
+
+<footer>
+    Null Realm -- Built by Anurag @ Scality -- Powered by Claude, tree-sitter, pgvector, Neo4j, and Argo Workflows
+</footer>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1e3a5f',
+            primaryTextColor: '#e0e0e0',
+            primaryBorderColor: '#2e4a6f',
+            lineColor: '#4a5568',
+            secondaryColor: '#2e1a4f',
+            tertiaryColor: '#1a3a2e',
+            background: '#0f0f1a',
+            mainBkg: '#12121f',
+            nodeBorder: '#2e4a6f',
+            clusterBkg: '#0a0a1a',
+            clusterBorder: '#1a1a3a',
+            titleColor: '#e0e0e0',
+            edgeLabelBackground: '#0a0a1a',
+            actorBkg: '#1e3a5f',
+            actorBorder: '#2e4a6f',
+            actorTextColor: '#e0e0e0',
+            actorLineColor: '#4a5568',
+            signalColor: '#60a5fa',
+            signalTextColor: '#e0e0e0',
+            labelBoxBkgColor: '#12121f',
+            labelBoxBorderColor: '#1a1a3a',
+            labelTextColor: '#e0e0e0',
+            loopTextColor: '#94a3b8',
+            noteBkgColor: '#1a1a2e',
+            noteTextColor: '#e0e0e0',
+            noteBorderColor: '#2e4a6f',
+            activationBkgColor: '#1e3a5f',
+            activationBorderColor: '#2e4a6f',
+            sequenceNumberColor: '#60a5fa',
+        },
+        sequence: {
+            actorMargin: 50,
+            width: 150,
+            height: 65,
+            useMaxWidth: false,
+        },
+        flowchart: {
+            useMaxWidth: false,
+            htmlLabels: true,
+            curve: 'basis',
+        },
+    });
+</script>
+
+</body>
+</html>

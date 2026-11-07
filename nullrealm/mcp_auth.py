@@ -18,7 +18,7 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET", "dev-secret-change-me")
 REDIRECT_URI = os.getenv(
     "MCP_REDIRECT_URI",
-    "http://hopocalypse.34.53.165.155.nip.io/oauth/callback",
+    "https://hopocalypse.34.53.165.155.nip.io/oauth/callback",
 )
 
 

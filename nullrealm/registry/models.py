@@ -65,6 +65,19 @@ class Workflow(Base):
     max_parallel_agents: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class McpAuditLog(Base):
+    """Audit log for every MCP tool call — who, what, when, how long."""
+    __tablename__ = "mcp_audit_log"
+
+    user_email: Mapped[str] = mapped_column(String(255), nullable=False, default="anonymous")
+    tool_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    input_params: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    output_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="success")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class Repository(Base):
     __tablename__ = "repos"
 

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix
+  namespace: null-realm
+  labels:
+    app: phoenix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix
+  template:
+    metadata:
+      labels:
+        app: phoenix
+    spec:
+      containers:
+        - name: phoenix
+          image: arizephoenix/phoenix:latest
+          ports:
+            - containerPort: 6006
+          env:
+            - name: PHOENIX_WORKING_DIR
+              value: "/data"
+            - name: PHOENIX_PORT
+              value: "6006"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: phoenix-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 6006
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 6006
+            periodSeconds: 30
+      volumes:
+        - name: phoenix-data
+          emptyDir: {}

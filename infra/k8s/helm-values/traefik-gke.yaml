@@ -1,5 +1,7 @@
 # Traefik Ingress Controller for GKE
-# Provisions a GCP Network Load Balancer via LoadBalancer service
+# Provisions a GCP Network Load Balancer via LoadBalancer service.
+# TLS via Traefik built-in ACME (Let's Encrypt, HTTP-01).
+# Schema: chart traefik 39.0.7.
 
 service:
   type: LoadBalancer
@@ -17,10 +19,75 @@ ports:
     port: 8000
     exposedPort: 80
     protocol: TCP
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
   websecure:
     port: 8443
     exposedPort: 443
     protocol: TCP
+    http:
+      tls:
+        enabled: true
+        certResolver: le
+
+certificatesResolvers:
+  le:
+    acme:
+      email: anurag.mittal@scality.com
+      storage: /data/acme.json
+      httpChallenge:
+        entryPoint: web
+
+# Persist acme.json so cert + ACME account survive pod restarts.
+# Without this, every restart re-issues 14 certs and risks Let's Encrypt rate limits.
+persistence:
+  enabled: true
+  size: 128Mi
+  path: /data
+  accessMode: ReadWriteOnce
+
+# fsGroup so the PVC is owned by Traefik's non-root user (65532), otherwise
+# Traefik can't write /data/acme.json.
+podSecurityContext:
+  runAsGroup: 65532
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+# Init container ensures /data/acme.json exists with mode 600 before Traefik starts.
+deployment:
+  initContainers:
+    - name: volume-permissions
+      image: busybox:1.36
+      command: ["sh", "-c", "touch /data/acme.json && chmod 600 /data/acme.json"]
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+        readOnlyRootFilesystem: true
+        seccompProfile:
+          type: RuntimeDefault
+      volumeMounts:
+        - name: data
+          mountPath: /data
+
+# RWO PVC: terminate old pod before starting new one, so the volume is free.
+# Chart default is maxSurge:1/maxUnavailable:0, which would deadlock here.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
 
 ingressRoute:
   dashboard:

@@ -36,6 +36,8 @@ spec:
               value: "helpful-rope-230010"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://jaeger.null-realm.svc.cluster.local:4317"
+            - name: PHOENIX_COLLECTOR_ENDPOINT
+              value: "http://phoenix.null-realm.svc.cluster.local:6006/v1/traces"
             - name: GOOGLE_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -52,7 +54,9 @@ spec:
                   name: mcp-secrets
                   key: MCP_JWT_SECRET
             - name: MCP_REDIRECT_URI
-              value: "http://hopocalypse.34.53.165.155.nip.io/oauth/callback"
+              value: "https://hopocalypse.34.53.165.155.nip.io/oauth/callback"
+            - name: MCP_BASE_URL
+              value: "https://hopocalypse.34.53.165.155.nip.io"
           resources:
             requests:
               cpu: 250m

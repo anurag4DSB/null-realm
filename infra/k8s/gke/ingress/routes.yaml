@@ -6,13 +6,15 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`34.53.165.155.nip.io`)
       kind: Rule
       services:
         - name: oauth2-proxy
           port: 4180
+  tls:
+    certResolver: le
 ---
 # Chat UI (Chainlit) — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -22,7 +24,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`chat.34.53.165.155.nip.io`)
       kind: Rule
@@ -31,6 +33,8 @@ spec:
       services:
         - name: chainlit
           port: 8501
+  tls:
+    certResolver: le
 ---
 # Grafana — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -40,7 +44,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`grafana.34.53.165.155.nip.io`)
       kind: Rule
@@ -49,6 +53,8 @@ spec:
       services:
         - name: prometheus-grafana
           port: 80
+  tls:
+    certResolver: le
 ---
 # Jaeger — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -58,7 +64,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`jaeger.34.53.165.155.nip.io`)
       kind: Rule
@@ -67,6 +73,8 @@ spec:
       services:
         - name: jaeger
           port: 16686
+  tls:
+    certResolver: le
 ---
 # Argo Workflows UI — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -76,7 +84,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`argo.34.53.165.155.nip.io`)
       kind: Rule
@@ -85,6 +93,8 @@ spec:
       services:
         - name: argo-workflows-server
           port: 2746
+  tls:
+    certResolver: le
 ---
 # API server — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -94,7 +104,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`api.34.53.165.155.nip.io`)
       kind: Rule
@@ -103,6 +113,8 @@ spec:
       services:
         - name: api-server
           port: 8000
+  tls:
+    certResolver: le
 ---
 # Neo4j Browser — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -112,7 +124,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`neo4j.34.53.165.155.nip.io`)
       kind: Rule
@@ -121,6 +133,8 @@ spec:
       services:
         - name: neo4j
           port: 7474
+  tls:
+    certResolver: le
 ---
 # Embedding Visualizations — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -130,7 +144,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`embeddings.34.53.165.155.nip.io`)
       kind: Rule
@@ -139,6 +153,8 @@ spec:
       services:
         - name: embedding-viz
           port: 8502
+  tls:
+    certResolver: le
 ---
 # Apple Embedding Atlas — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -148,7 +164,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`atlas.34.53.165.155.nip.io`)
       kind: Rule
@@ -157,6 +173,8 @@ spec:
       services:
         - name: atlas
           port: 8080
+  tls:
+    certResolver: le
 ---
 # TensorBoard Embedding Projector — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -166,7 +184,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`tensorboard.34.53.165.155.nip.io`)
       kind: Rule
@@ -175,6 +193,8 @@ spec:
       services:
         - name: projector
           port: 8080
+  tls:
+    certResolver: le
 ---
 # Renumics Spotlight — subdomain, OAuth protected
 apiVersion: traefik.io/v1alpha1
@@ -184,7 +204,7 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`spotlight.34.53.165.155.nip.io`)
       kind: Rule
@@ -193,6 +213,28 @@ spec:
       services:
         - name: spotlight
           port: 8080
+  tls:
+    certResolver: le
+---
+# Arize Phoenix — MCP observability dashboard, OAuth protected
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: phoenix
+  namespace: null-realm
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`phoenix.34.53.165.155.nip.io`)
+      kind: Rule
+      middlewares:
+        - name: oauth2-auth
+      services:
+        - name: phoenix
+          port: 6006
+  tls:
+    certResolver: le
 ---
 # MCP Server — Hopocalypse (NO OAuth2 Proxy — handles its own auth)
 apiVersion: traefik.io/v1alpha1
@@ -202,10 +244,12 @@ metadata:
   namespace: null-realm
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
     - match: Host(`hopocalypse.34.53.165.155.nip.io`)
       kind: Rule
       services:
         - name: mcp-server
           port: 8090
+  tls:
+    certResolver: le

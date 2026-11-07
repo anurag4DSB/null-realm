@@ -1,0 +1,159 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Total Calls",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS \"value\" FROM mcp_audit_log", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }] } } }
+    },
+    {
+      "title": "Unique Users",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT COUNT(DISTINCT user_email) AS \"value\" FROM mcp_audit_log", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": null }] } } }
+    },
+    {
+      "title": "Success Rate",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT ROUND(100.0 * SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) / GREATEST(COUNT(*), 1), 1) AS \"value\" FROM mcp_audit_log", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "fieldConfig": { "defaults": { "unit": "percent", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 99 }] } } }
+    },
+    {
+      "title": "Avg Latency",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(duration_ms)) AS \"value\" FROM mcp_audit_log WHERE status='success'", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "id": 4,
+      "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1000 }, { "color": "red", "value": 5000 }] } } }
+    },
+    {
+      "title": "Calls Today",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS \"value\" FROM mcp_audit_log WHERE created_at > NOW() - INTERVAL '24 hours'", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "id": 5,
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "purple", "value": null }] } } }
+    },
+    {
+      "title": "Errors Today",
+      "type": "stat",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS \"value\" FROM mcp_audit_log WHERE status='error' AND created_at > NOW() - INTERVAL '24 hours'", "format": "table", "refId": "A" }],
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "id": 6,
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "title": "Live Feed — Every MCP Tool Call",
+      "description": "Every tool call with user, query, repo, timing, and status. Click column headers to sort.",
+      "type": "table",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT created_at AS \"Time\", user_email AS \"User\", tool_name AS \"Tool\", input_params->>'query' AS \"Query\", input_params->>'repo' AS \"Repo\", input_params->>'symbol' AS \"Symbol\", duration_ms AS \"Latency (ms)\", output_size AS \"Output Size\", status AS \"Status\", CASE WHEN error_message IS NOT NULL THEN error_message ELSE '' END AS \"Error\" FROM mcp_audit_log ORDER BY created_at DESC LIMIT 100",
+        "format": "table",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 4 },
+      "id": 7
+    },
+    {
+      "title": "Users — Who's Using What",
+      "description": "Total calls, favorite tool, avg latency, last seen",
+      "type": "table",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT user_email AS \"User\", COUNT(*) AS \"Total Calls\", MODE() WITHIN GROUP (ORDER BY tool_name) AS \"Favorite Tool\", ROUND(AVG(duration_ms)) AS \"Avg Latency (ms)\", SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS \"Errors\", MAX(created_at) AS \"Last Active\" FROM mcp_audit_log GROUP BY user_email ORDER BY \"Total Calls\" DESC",
+        "format": "table",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 8
+    },
+    {
+      "title": "Tools — Usage & Performance",
+      "description": "Call count, avg/p95 latency, error rate per tool",
+      "type": "table",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT tool_name AS \"Tool\", COUNT(*) AS \"Calls\", ROUND(AVG(duration_ms)) AS \"Avg (ms)\", ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)) AS \"p95 (ms)\", ROUND(100.0 * SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) / GREATEST(COUNT(*), 1), 1) AS \"Error %\", ROUND(AVG(output_size)) AS \"Avg Output\" FROM mcp_audit_log GROUP BY tool_name ORDER BY \"Calls\" DESC",
+        "format": "table",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 9
+    },
+    {
+      "title": "Top Search Queries",
+      "description": "What are people searching for?",
+      "type": "table",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT input_params->>'query' AS \"Query\", input_params->>'repo' AS \"Repo\", COUNT(*) AS \"Times\", ROUND(AVG(duration_ms)) AS \"Avg (ms)\", ROUND(AVG(output_size)) AS \"Avg Output\" FROM mcp_audit_log WHERE tool_name = 'code_search' AND input_params->>'query' IS NOT NULL GROUP BY input_params->>'query', input_params->>'repo' ORDER BY \"Times\" DESC LIMIT 25",
+        "format": "table",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 10
+    },
+    {
+      "title": "User Activity Over Time",
+      "description": "Calls per hour per user — see who's active when",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT date_trunc('hour', created_at) AS \"time\", user_email AS \"metric\", COUNT(*) AS \"value\" FROM mcp_audit_log WHERE $__timeFilter(created_at) GROUP BY 1, 2 ORDER BY 1",
+        "format": "time_series",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 11,
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal" } } } }
+    },
+    {
+      "title": "Slowest Calls (Last 24h) — What's Taking Long?",
+      "description": "Tool calls sorted by latency. Investigate slow queries here.",
+      "type": "table",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "P5EC2F13C1A8C8061" },
+      "targets": [{
+        "rawSql": "SELECT created_at AS \"Time\", user_email AS \"User\", tool_name AS \"Tool\", input_params->>'query' AS \"Query\", input_params->>'repo' AS \"Repo\", duration_ms AS \"Latency (ms)\", output_size AS \"Output\", status AS \"Status\" FROM mcp_audit_log WHERE created_at > NOW() - INTERVAL '24 hours' ORDER BY duration_ms DESC LIMIT 20",
+        "format": "table",
+        "refId": "A"
+      }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "id": 12
+    },
+    {
+      "title": "Deep Dive — Jaeger Traces & Phoenix",
+      "type": "text",
+      "options": {
+        "mode": "markdown",
+        "content": "### Trace Viewers\n\n| Tool | URL | What you see |\n|------|-----|-------------|\n| **Jaeger** | [jaeger.34.53.165.155.nip.io](http://jaeger.34.53.165.155.nip.io/search?service=mcp-server) | Select service `mcp-server` → see every span with timing, user.id, input/output attributes |\n| **Phoenix** | [phoenix.34.53.165.155.nip.io](http://phoenix.34.53.165.155.nip.io) | Click any trace → see user email, tool input JSON, output preview, nested spans |\n\nBoth show the **same OpenTelemetry traces** — Jaeger for raw span details, Phoenix for AI/tool-oriented view."
+      },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 40 },
+      "id": 13
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["mcp", "observability"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MCP Server Observability",
+  "uid": "mcp-server-obs",
+  "version": 2
+}
